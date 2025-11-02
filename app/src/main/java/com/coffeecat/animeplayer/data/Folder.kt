@@ -6,5 +6,5 @@ import android.net.Uri
 data class FolderInfo(
     val name: String,
     val uri: Uri,
-    val videos: List<VideoInfo>
+    val medias: List<MediaInfo>
 )

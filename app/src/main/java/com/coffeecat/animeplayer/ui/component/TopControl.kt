@@ -9,20 +9,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.coffeecat.animeplayer.data.VideoInfo
+import com.coffeecat.animeplayer.data.MediaInfo
 
 @Composable
-fun TopControl(video: VideoInfo,orientation:String,modifier: Modifier) {
+fun TopControl(
+    media: MediaInfo,
+    orientation:String,
+    modifier: Modifier
+) {
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .fillMaxHeight(0.2f)
+            .fillMaxHeight(0.3f)
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFF000000), Color(0x00000000))
@@ -31,7 +34,7 @@ fun TopControl(video: VideoInfo,orientation:String,modifier: Modifier) {
         contentAlignment = Alignment.TopStart
     ) {
         Text(
-            text = video.title.substringBeforeLast(".", video.title),
+            text = media.title,
             color = Color(0xFFEEEEEE),
             fontSize = 20.sp,
             maxLines = 1,

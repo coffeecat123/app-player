@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,6 +15,26 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Anime_player">
+        <service
+            android:name=".service.PlayerService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService"/>
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".service.PlayerActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.coffeecat.animeplayer.ACTION_STOP" />
+                <action android:name="com.coffeecat.animeplayer.ACTION_PREVIOUS" />
+                <action android:name="com.coffeecat.animeplayer.ACTION_PLAY_PAUSE" />
+                <action android:name="com.coffeecat.animeplayer.ACTION_NEXT" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

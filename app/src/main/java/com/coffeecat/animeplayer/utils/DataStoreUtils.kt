@@ -11,9 +11,3 @@ import kotlin.collections.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "folder_prefs")
 val FOLDER_URIS = stringSetPreferencesKey("saved_folder_uris")
-
-suspend fun saveFolderUris(context: Context, uris: List<Uri>) {
-    context.dataStore.edit { prefs ->
-        prefs[FOLDER_URIS] = uris.map { it.toString() }.toSet()
-    }
-}

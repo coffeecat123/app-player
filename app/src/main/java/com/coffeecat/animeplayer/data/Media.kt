@@ -1,0 +1,13 @@
+package com.coffeecat.animeplayer.data
+
+import android.net.Uri
+
+
+data class MediaInfo(
+    val title: String,
+    val uri: Uri,
+    val duration: Long,
+    val fileName: String,
+    val extension: String,
+    val isVideo: Boolean
+)

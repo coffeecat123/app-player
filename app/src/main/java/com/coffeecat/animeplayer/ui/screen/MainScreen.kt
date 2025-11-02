@@ -22,15 +22,16 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
+import com.coffeecat.animeplayer.service.PlayerHolder
 import com.coffeecat.animeplayer.ui.component.FolderList
-import com.coffeecat.animeplayer.ui.component.VideoPlayer
+import com.coffeecat.animeplayer.ui.component.MediaPlayer
 import com.coffeecat.animeplayer.viewmodel.MainViewModel
 
 @Composable
@@ -38,16 +39,17 @@ fun MainScreen(viewModel: MainViewModel) {
 
     val context = LocalContext.current
     val activity = context as? Activity
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by PlayerHolder.uiState.collectAsState()
     val folders = uiState.folders
-    val currentVideo = uiState.currentVideo
+    val currentMedia = uiState.currentMedia
     val isFullScreen = uiState.isFullScreen
     val canFullScreen = uiState.canFullScreen
     val nowOrientation = uiState.nowOrientation
-    val configuration = LocalConfiguration.current
+    val currentMediaState by rememberUpdatedState(currentMedia)
 
     LaunchedEffect(Unit) {
-        viewModel.loadFolders(context)
+        PlayerHolder.loadFolders(context)
+        PlayerHolder.initializeMediaProgressMap(context)
     }
 
     // Launcher 必須在 Composable 中
@@ -55,7 +57,7 @@ fun MainScreen(viewModel: MainViewModel) {
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri?.let {
-            viewModel.addFolder(context, it) // 呼叫 ViewModel 將資料加入 StateFlow + DataStore
+            PlayerHolder.addFolder(context, it) // 呼叫 ViewModel 將資料加入 StateFlow + DataStore
         }
     }
     if(nowOrientation=="LANDSCAPE"){
@@ -67,19 +69,19 @@ fun MainScreen(viewModel: MainViewModel) {
         val listener = object : OrientationEventListener(context) {
             @OptIn(UnstableApi::class)
             override fun onOrientationChanged(angle: Int) {
-                Log.d("VideoPlayer", currentVideo?.title.toString())
-                if(currentVideo==null) return
+                Log.d("MediaPlayer", currentMediaState?.title.toString())
+                if(currentMediaState==null) return
                 // angle: 0~359 度
                 val t=25
                 if (angle in 45+t..134-t || angle in 225+t..314-t) {
-                    if (canFullScreen) {
-                        viewModel.changeOrientation("LANDSCAPE")
-                        viewModel.toggleFullScreen(true)
+                    if (PlayerHolder.uiState.value.canFullScreen) {
+                        PlayerHolder.changeOrientation("LANDSCAPE")
+                        PlayerHolder.toggleFullScreen(true)
                     }
                 } else {
-                    if (!isFullScreen) {
-                        viewModel.toggleCanFullScreen(true)
-                        viewModel.changeOrientation("PORTRAIT")
+                    if (!PlayerHolder.uiState.value.isFullScreen) {
+                        PlayerHolder.toggleCanFullScreen(true)
+                        PlayerHolder.changeOrientation("PORTRAIT")
                     }
                 }
             }
@@ -95,7 +97,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 Modifier
             else
                 Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
-        )
+        ),
     ) {
 
         Box(
@@ -109,13 +111,14 @@ fun MainScreen(viewModel: MainViewModel) {
         ) {
             if(nowOrientation=="LANDSCAPE"){
                 BackHandler {
-                    viewModel.changeOrientation("PORTRAIT")
-                    viewModel.toggleCanFullScreen(false)
-                    viewModel.toggleFullScreen(false)
+                    PlayerHolder.changeOrientation("PORTRAIT")
+                    PlayerHolder.toggleCanFullScreen(false)
+                    PlayerHolder.toggleFullScreen(false)
                 }
             }
-            if (currentVideo!= null) {
-                VideoPlayer(video = currentVideo!!, mainViewModel = viewModel)
+            if (currentMedia!= null) {
+                MediaPlayer(media = currentMedia,
+                    mainViewModel = viewModel)
                 // DanmuLayer() 可以疊加在這裡
             } else {
                 Text(
@@ -125,14 +128,14 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
             }
         }
-        FolderList(
-            folders = folders,
-            onVideoClick = { video ->
-                viewModel.selectVideo(video,context)
-            },
-            onAddFolder = {
-                launcher.launch(null) // 由 Composable 負責觸發資料夾選擇
-            }
-        )
+        if(nowOrientation!="LANDSCAPE") {
+            FolderList(
+                viewModel,
+                context,
+                onAddFolder = {
+                    launcher.launch(null)
+                }
+            )
+        }
     }
 }

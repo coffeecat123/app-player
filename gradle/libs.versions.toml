@@ -12,6 +12,8 @@ runtime = "1.9.4"
 playServicesCast = "22.2.0"
 datastoreCore = "1.1.7"
 foundationLayout = "1.9.4"
+material3 = "1.4.0"
+media3Session = "1.8.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +34,8 @@ androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime
 play-services-cast = { group = "com.google.android.gms", name = "play-services-cast", version.ref = "playServicesCast" }
 androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastoreCore" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3Session" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
