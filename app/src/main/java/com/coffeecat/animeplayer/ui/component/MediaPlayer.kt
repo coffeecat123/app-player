@@ -1,15 +1,15 @@
 package com.coffeecat.animeplayer.ui.component
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -22,13 +22,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.changedToDown
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
@@ -38,28 +37,26 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
 import androidx.media3.ui.PlayerView
 import com.coffeecat.animeplayer.data.MediaInfo
 import com.coffeecat.animeplayer.service.PlayerHolder
-import com.coffeecat.animeplayer.viewmodel.MainViewModel
+import com.coffeecat.animeplayer.ui.layer.DanmuLayer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-@SuppressLint("CoroutineCreationDuringComposition")
+@RequiresApi(Build.VERSION_CODES.O)
+@SuppressLint("AutoboxingStateCreation")
 @Composable
 fun MediaPlayer(
-    media: MediaInfo,
-    mainViewModel: MainViewModel
+    media: MediaInfo
 ) {
     val context = LocalContext.current
     val exoPlayer = PlayerHolder.exoPlayer
     val uiState by PlayerHolder.uiState.collectAsState()
-    val currentMedia = uiState.currentMedia
     val controlsVisible = uiState.controlsVisible
+    val isDanmuSettingVisible = uiState.isDanmuSettingVisible
     val nowOrientation = uiState.nowOrientation
     val scope = rememberCoroutineScope()
     var hideJob by remember { mutableStateOf<Job?>(null) }
@@ -78,6 +75,7 @@ fun MediaPlayer(
         hideJob = scope.launch {
             delay(2000)
             PlayerHolder.toggleControlsVisible(false)
+            PlayerHolder.toggleIsDanmuSettingVisible(false)
         }
     }
     fun formatTime(ms: Long): String {
@@ -109,14 +107,19 @@ fun MediaPlayer(
     }
     if (exoPlayer != null) {
         Box(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(0.dp)
-                .pointerInput(controlsVisible) {
+                .pointerInput(controlsVisible,isDanmuSettingVisible) {
+                    val sidebarWidthPx = with(context) { 360.dp.toPx() } // 側欄寬度
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull() ?: continue
 
+                            if (isDanmuSettingVisible && change.position.x > size.width - sidebarWidthPx) {
+                                continue
+                            }
                             hideJob?.cancel()
 
                             // pointer down
@@ -146,6 +149,7 @@ fun MediaPlayer(
                                     clickJob = scope.launch {
                                         delay(doubleClickDelay)
                                         PlayerHolder.toggleControlsVisible()
+                                        PlayerHolder.toggleIsDanmuSettingVisible(false)
                                     }
                                     lastClickTime = now
                                 }
@@ -155,14 +159,14 @@ fun MediaPlayer(
                             if (change.pressed && change.positionChanged()) {
                                 if (!dragAllowed) continue
                                 PlayerHolder.toggleControlsVisible(true)
-                                val newx=change.position.x
+                                val newx = change.position.x
                                 // 防止輕微抖動誤觸
-                                if (!isDragging && abs(newx-dragStartX) > 12.dp.toPx()) {
+                                if (!isDragging && abs(newx - dragStartX) > 12.dp.toPx()) {
                                     isDragging = true
-                                    PlayerHolder.lastPlayingState=exoPlayer.isPlaying
+                                    PlayerHolder.lastPlayingState = exoPlayer.isPlaying
                                     exoPlayer.pause() // 拖曳時先停
                                     clickJob?.cancel() // 不要觸發單擊
-                                    dragStartX=(newx*0.6+dragStartX*0.4).toFloat()
+                                    dragStartX = (newx * 0.6 + dragStartX * 0.4).toFloat()
                                 }
 
                                 if (isDragging) {
@@ -185,11 +189,11 @@ fun MediaPlayer(
                                         val backward = current - (t * 1000).toLong()
                                         (backward - current).coerceAtLeast(-current)
                                     }
-                                    val nexPos= (exoPlayer.currentPosition + skippingMs)
+                                    val nexPos = (exoPlayer.currentPosition + skippingMs)
                                         .coerceIn(0, exoPlayer.duration)
-                                    PlayerHolder.draggingSeekPosMs =nexPos
+                                    PlayerHolder.draggingSeekPosMs = nexPos
                                     PlayerHolder.currentPosition = nexPos
-                                    skippingtime=skippingMs
+                                    skippingtime = skippingMs
                                     change.consume()
                                 }
                             }
@@ -199,10 +203,13 @@ fun MediaPlayer(
                                 dragAllowed = false
                                 if (isDragging) {
                                     PlayerHolder.draggingSeekPosMs?.let {
+                                        if (abs(it - exoPlayer.currentPosition) > 3000) {
+                                            PlayerHolder.clearDanmuTrigger.value = true
+                                        }
                                         exoPlayer.seekTo(it)
                                     }
                                     PlayerHolder.draggingSeekPosMs = null
-                                    if(PlayerHolder.lastPlayingState)
+                                    if (PlayerHolder.lastPlayingState)
                                         exoPlayer.play()
 
                                     isDragging = false
@@ -225,60 +232,66 @@ fun MediaPlayer(
                 },
                 modifier = Modifier.align(Alignment.Center)
             )
-            if (controlsVisible) {
-                AnimatedVisibility(
-                    visible = controlsVisible,
-                    enter = fadeIn(animationSpec = tween(durationMillis = 300)),
-                    exit  = fadeOut(animationSpec = tween(durationMillis = 300))
+            DanmuLayer(
+                modifier = Modifier.matchParentSize()
+            )
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(300))
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        TopControl(
-                            media = media,
-                            orientation = nowOrientation,
-                            modifier = if (nowOrientation == "LANDSCAPE")
-                                Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(horizontal = 32.dp)
-                            else
-                                Modifier
-                                    .align(Alignment.TopStart)
-                        )
-                        ControlBar(
-                            mainViewModel = mainViewModel,
-                            orientation = nowOrientation,
-                            modifier =( if (nowOrientation == "LANDSCAPE")
-                                Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(horizontal = 32.dp)
-                            else
-                                Modifier
-                                    .align(Alignment.BottomCenter))
-                        )
+                    TopControl(
+                        media = media,
+                        orientation = nowOrientation,
+                        modifier = Modifier.align(Alignment.TopStart)
+                    )
+                    ControlBar(
+                        orientation = nowOrientation,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+            }
+            //danmu_setting
+            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                AnimatedVisibility(
+                    visible = isDanmuSettingVisible,
+                    enter = slideInHorizontally(
+                        initialOffsetX = { it }, // 從右邊滑入
+                        animationSpec = tween(durationMillis = 300)
+                    ),
+                    exit = slideOutHorizontally(
+                        targetOffsetX = { it }, // 往右滑出
+                        animationSpec = tween(durationMillis = 300)
+                    )
+                ) {
+                    DanmuSettingSidebar(
+                        modifier = Modifier,
+                        { resetHideTimer() }
+                    ) {
+                        DanmuSettingMenu()
                     }
                 }
             }
 
-            Box(modifier = Modifier
-                .fillMaxSize()
-            ){
-                AnimatedVisibility(
-                    visible = isDragging,
-                    modifier = Modifier.align(Alignment.Center),
-                    enter = fadeIn(animationSpec = tween(200)),
-                    exit = fadeOut(animationSpec = tween(200))
-                ) {
-                    val previewTime = PlayerHolder.draggingSeekPosMs ?: exoPlayer.currentPosition
-                    Text(
-                        text = "${formatTime(previewTime)} / ${formatTime(exoPlayer.duration)}\n" +
-                                "${if (skippingtime >= 0) "+" else "-"}${formatTime(abs(skippingtime))}",
-                        fontSize = 20.sp,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
-                }
+            // 拖曳預覽
+            Box(modifier = Modifier.fillMaxSize()) {
+                val previewTime = PlayerHolder.draggingSeekPosMs ?: exoPlayer.currentPosition
+                val dragAlpha = if (isDragging) 1f else 0f
+                Text(
+                    text = "${formatTime(previewTime)} / ${formatTime(exoPlayer.duration)}\n" +
+                            "${if (skippingtime >= 0) "+" else "-"}${formatTime(abs(skippingtime))}",
+                    fontSize = 20.sp,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer { alpha = dragAlpha }
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
             }
         }
     }

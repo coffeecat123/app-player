@@ -1,24 +1,26 @@
 package com.coffeecat.animeplayer.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
-import android.graphics.BitmapFactory
+import android.net.ConnectivityManager
 import android.os.Build
-import android.util.Log
 import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
+import androidx.annotation.RequiresApi
+import androidx.core.content.getSystemService
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
+import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaController
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
-import androidx.media3.session.MediaStyleNotificationHelper
+import androidx.media3.session.SessionToken
 import com.coffeecat.animeplayer.MainActivity
 import com.coffeecat.animeplayer.R
+import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,236 +31,147 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PlayerService : MediaSessionService() {
+class PlayerService : MediaLibraryService() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var autoSaveJob: Job? = null
-    private var mediaSession: MediaSession? = null
+    private lateinit var mediaSession: MediaLibrarySession
+    lateinit var mediaLibrarySessionCallback: MediaLibraryCallback
 
+    private lateinit var connectivityManager: ConnectivityManager
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+
+
+        val player = PlayerHolder.exoPlayer ?: return
+
+        // 關鍵步驟：使用自訂的 CustomMediaNotificationProvider
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider(
+                this,
+                { NOTIFICATION_ID },
+                CHANNEL_ID,
+                R.string.app_name
+            )
+                .apply {
+                    setSmallIcon(R.drawable.round_queue_music_24)
+                }
+        )
+        mediaLibrarySessionCallback = MediaLibraryCallback(this)
+
+        mediaSession =
+            MediaLibrarySession
+                .Builder(this, player, mediaLibrarySessionCallback)
+                .setSessionActivity(
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        Intent(this, MainActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE,
+                    ),
+                )
+                .build()
+
+        val sessionToken = SessionToken(this, ComponentName(this, PlayerService::class.java))
+        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture.addListener({ controllerFuture.get() }, MoreExecutors.directExecutor())
+
+        setupPlayerListener(player)
+        updateNotification()
+
+        connectivityManager = getSystemService()!!
 
         autoSaveJob?.cancel()
         autoSaveJob = serviceScope.launch {
             while (isActive) {
                 delay(200)
                 val player = PlayerHolder.exoPlayer ?: continue
-                val posDur = withContext(Dispatchers.Main) {
+
+                val playerState = withContext(Dispatchers.Main) {
                     if (player.duration != C.TIME_UNSET && player.currentMediaItem != null) {
-                        player.currentPosition to player.duration
+                        Triple(player.currentPosition, player.duration, player.isPlaying)
                     } else null
                 } ?: continue
 
-                if (PlayerHolder.draggingSeekPosMs == null) {
-                    PlayerHolder.currentPosition = posDur.first
-                }
-                PlayerHolder.duration = posDur.second
+                val currentPos = playerState.first
+                val currentDur = playerState.second
+                val isPlaying = playerState.third
 
+                if (PlayerHolder.draggingSeekPosMs == null) {
+                    PlayerHolder.currentPosition = currentPos
+                }
+                PlayerHolder.duration = currentDur
+                PlayerHolder.isPlaying = isPlaying
                 PlayerHolder.saveProgress(applicationContext)
+
+                updateNotification()
             }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        autoSaveJob?.cancel()
         PlayerHolder.saveProgress(applicationContext)
-        mediaSession?.release()
-        mediaSession = null
+        mediaSession.release()
+        PlayerHolder.exoPlayer?.release()
+        PlayerHolder.clear()
         serviceScope.cancel()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession {
         return mediaSession
     }
 
-    @OptIn(UnstableApi::class)
-    private fun buildNotification(): Notification {
-        // 檢查 mediaSession 是否存在
-        val session = mediaSession
-            ?: throw IllegalStateException("MediaSession 未初始化")
+    private fun setupPlayerListener(player: ExoPlayer) {
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                super.onPlaybackStateChanged(playbackState)
+                updateNotification()
+            }
 
-        // 點擊通知打開 MainActivity
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            REQUEST_CODE_MAIN,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // 創建各個操作的 PendingIntent
-        val stopIntent = Intent(this, PlayerActionReceiver::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getBroadcast(
-            this,
-            REQUEST_CODE_STOP,
-            stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val previousIntent = Intent(this, PlayerActionReceiver::class.java).apply {
-            action = ACTION_PREVIOUS
-        }
-        val previousPendingIntent = PendingIntent.getBroadcast(
-            this,
-            REQUEST_CODE_PREVIOUS,
-            previousIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val playPauseIntent = Intent(this, PlayerActionReceiver::class.java).apply {
-            action = ACTION_PLAY_PAUSE
-        }
-        val playPausePendingIntent = PendingIntent.getBroadcast(
-            this,
-            REQUEST_CODE_PLAY_PAUSE,
-            playPauseIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val nextIntent = Intent(this, PlayerActionReceiver::class.java).apply {
-            action = ACTION_NEXT
-        }
-        val nextPendingIntent = PendingIntent.getBroadcast(
-            this,
-            REQUEST_CODE_NEXT,
-            nextIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // 根據播放狀態選擇圖標
-        val player = PlayerHolder.exoPlayer
-        val isPlaying = player?.isPlaying ?: false
-        val playPauseIcon = if (isPlaying) {
-            R.drawable.baseline_pause_24 // 暫停圖標（需要添加）
-        } else {
-            R.drawable.baseline_play_arrow_24 // 播放圖標（需要添加）
-        }
-        val albumArtBitmap = BitmapFactory.decodeResource(resources, R.drawable.outline_music_note_24)
-        val selectedFolder = PlayerHolder.uiState.value.folders.find { it.uri == PlayerHolder.uiState.value.selectedFolderUri }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            // Show controls on lock screen even when user hides sensitive content.
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSmallIcon(R.drawable.outline_music_note_24)
-            // Add media control buttons that invoke intents in your media service
-            .addAction(R.drawable.outline_skip_previous_24, "Previous", previousPendingIntent) // #0
-            .addAction(playPauseIcon, "Pause", playPausePendingIntent) // #1
-            .addAction(R.drawable.outline_skip_next_24, "Next", nextPendingIntent) // #2
-            // Apply the media style template.
-            .setStyle(MediaStyleNotificationHelper.MediaStyle(mediaSession!!)
-                .setShowActionsInCompactView(1 ,0,2))
-            .setContentTitle("${selectedFolder?.name}")
-            .setContentText("${PlayerHolder.uiState.value.currentMedia?.title}")
-            .setLargeIcon(albumArtBitmap)
-            .build()
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                super.onMediaItemTransition(mediaItem, reason)
+                updateNotification()
+            }
+        })
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Anime 播放",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "顯示動畫播放控制"
-                setShowBadge(false)
-            }
-            getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(channel)
-        }
-    }
+    private fun updateNotification() {
+        val buttons = listOf(
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
+            CommandButton.Builder()
+                .setDisplayName("previous")
+                .setIconResId(R.drawable.round_skip_previous_36)
+                .setSessionCommand(MediaSessionConstants.CommandPrevious)
+                .build(),
 
-        val exo = PlayerHolder.exoPlayer ?: return START_NOT_STICKY
+            CommandButton.Builder()
+                .setDisplayName("next")
+                .setIconResId(R.drawable.round_skip_next_36)
+                .setSessionCommand(MediaSessionConstants.CommandNext)
+                .build(),
 
-        // 處理停止播放的 Action
-        intent?.action?.let { action ->
-            if (action == ACTION_STOP) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return START_NOT_STICKY
-            }
-        }
+            CommandButton.Builder()
+                .setDisplayName("music")
+                .setIconResId(R.drawable.round_music_note_36)
+                .setSessionCommand(MediaSessionConstants.CommandMusic)
+                .build(),
 
-        // 初始化 MediaSession 和通知
-        if (mediaSession == null) {
-            mediaSession = MediaSession.Builder(this, exo).build()
-            createNotificationChannel()
-            try {
-                startForeground(NOTIFICATION_ID, buildNotification())
-            } catch (e: Exception) {
-                Log.e("PlayerService", "Failed to start foreground", e)
-            }
-        } else {
-            updateNotification()
-        }
-
-        return START_STICKY
-    }
-
-    fun updateNotification() {
-        val notification = buildNotification()
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, notification)
+            CommandButton.Builder()
+                .setDisplayName("stop")
+                .setIconResId(R.drawable.round_close_36)
+                .setSessionCommand(MediaSessionConstants.CommandStop)
+                .build()
+        )
+        mediaSession.setCustomLayout(buttons)
     }
 
     companion object {
         private const val CHANNEL_ID = "animeplayer_channel"
         private const val NOTIFICATION_ID = 1
-
-        const val ACTION_STOP = "com.coffeecat.animeplayer.ACTION_STOP"
-        const val ACTION_PREVIOUS = "com.coffeecat.animeplayer.ACTION_PREVIOUS"
-        const val ACTION_PLAY_PAUSE = "com.coffeecat.animeplayer.ACTION_PLAY_PAUSE"
-        const val ACTION_NEXT = "com.coffeecat.animeplayer.ACTION_NEXT"
-
-        private const val REQUEST_CODE_MAIN = 0
-        private const val REQUEST_CODE_STOP = 1
-        private const val REQUEST_CODE_PREVIOUS = 2
-        private const val REQUEST_CODE_PLAY_PAUSE = 3
-        private const val REQUEST_CODE_NEXT = 4
-    }
-}
-
-class PlayerActionReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val player = PlayerHolder.exoPlayer
-
-        when (intent.action) {
-            PlayerService.ACTION_STOP -> {
-                Log.d("PlayerService", "Stop action received")
-                val stopIntent = Intent(context, PlayerService::class.java).apply {
-                    action = PlayerService.ACTION_STOP
-                }
-                context.startService(stopIntent)
-            }
-
-            PlayerService.ACTION_PREVIOUS -> {
-                Log.d("PlayerService", "Previous action received")
-                player?.seekToPrevious()
-            }
-
-            PlayerService.ACTION_PLAY_PAUSE -> {
-                Log.d("PlayerService", "Play/Pause action received")
-                player?.let {
-                    if (it.isPlaying) {
-                        it.pause()
-                    } else {
-                        it.play()
-                    }
-                }
-                // 更新通知以反映播放狀態變化
-                val serviceIntent = Intent(context, PlayerService::class.java)
-                context.startService(serviceIntent)
-            }
-
-            PlayerService.ACTION_NEXT -> {
-                Log.d("PlayerService", "Next action received")
-                player?.seekToNext()
-            }
-        }
     }
 }

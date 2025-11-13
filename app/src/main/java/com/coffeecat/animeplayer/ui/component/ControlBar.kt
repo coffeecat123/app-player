@@ -1,19 +1,17 @@
 package com.coffeecat.animeplayer.ui.component
 
-import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.media3.common.C
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
@@ -21,15 +19,29 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.coffeecat.animeplayer.R
 import com.coffeecat.animeplayer.service.PlayerHolder
-import com.coffeecat.animeplayer.service.PlayerService
-import com.coffeecat.animeplayer.viewmodel.MainViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -38,20 +50,17 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ControlBar(
-    mainViewModel: MainViewModel,
     orientation: String,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val exoPlayer = PlayerHolder.exoPlayer ?: return
     val scope = rememberCoroutineScope()
-    var seekJob by remember { mutableStateOf<Job?>(null) }
     var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
     val uiState by PlayerHolder.uiState.collectAsState()
-    val currentMedia = uiState.currentMedia
-    val controlsVisible = uiState.controlsVisible
+    val isDanmuEnabled = uiState.isDanmuEnabled
     val selectedSpeed = PlayerHolder.playbackSpeed
     var expanded by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(exoPlayer) {
         while (this.isActive) {
@@ -63,12 +72,18 @@ fun ControlBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .fillMaxHeight(0.4f)
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0x00000000), Color(0xFF000000))
                 )
             )
-            .fillMaxHeight(0.4f),
+            .then(
+                if (orientation == "LANDSCAPE")
+                    Modifier.padding(horizontal = 32.dp)
+                else
+                    Modifier
+            ),
         contentAlignment = Alignment.BottomStart
     ) {
         // 控制列
@@ -93,7 +108,7 @@ fun ControlBar(
             }
 
             if(orientation!="LANDSCAPE") {
-                PlayerSlider(mainViewModel, scope, modifier = Modifier.weight(1f))
+                PlayerSlider(scope, modifier = Modifier.weight(1f))
             }else{
                 // 播放速度選擇
                 Box {
@@ -115,6 +130,29 @@ fun ControlBar(
                             )
                         }
                     }
+                }
+                //danmu
+                IconButton(
+                    onClick = { PlayerHolder.toggleIsDanmuEnabled() }
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (isDanmuEnabled) R.drawable.danmu_on else R.drawable.danmu_off
+                        ),
+                        contentDescription = null,
+                        tint = Color.Unspecified
+                    )
+                }
+                IconButton(
+                    onClick = { PlayerHolder.toggleIsDanmuSettingVisible() }
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            R.drawable.danmu_setting
+                        ),
+                        contentDescription = null,
+                        tint = Color.Unspecified
+                    )
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
@@ -138,7 +176,7 @@ fun ControlBar(
                     .padding(start = 16.dp, end = 16.dp)
                     .offset(y = (-36).dp)
             ) {
-                PlayerSlider(mainViewModel, scope)
+                PlayerSlider(scope)
             }
         }
     }
@@ -147,7 +185,6 @@ fun ControlBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSlider(
-    mainViewModel: MainViewModel,
     scope: CoroutineScope,
     modifier: Modifier = Modifier
 ) {
@@ -159,7 +196,7 @@ fun PlayerSlider(
     Box(modifier = modifier.fillMaxWidth()) {
         // 時間文字靠右
         Text(
-            text = "${formatTime(pos)} / ${formatTime(duration.toLong())}",
+            text = "${formatTime(pos)} / ${formatTime(duration)}",
             color = Color(0xFFEEEEEE),
             fontSize = 12.sp,
             maxLines = 1,
@@ -187,6 +224,7 @@ fun PlayerSlider(
                 if (PlayerHolder.lastPlayingState)
                     exoPlayer.play()
                 PlayerHolder.draggingSeekPosMs = null
+                PlayerHolder.clearDanmuTrigger.value=true
             },
             valueRange = 0f..duration.toFloat(),
             modifier = Modifier

@@ -9,5 +9,6 @@ data class MediaInfo(
     val duration: Long,
     val fileName: String,
     val extension: String,
-    val isVideo: Boolean
+    val isVideo: Boolean,
+    val danmuUri: Uri? = null
 )

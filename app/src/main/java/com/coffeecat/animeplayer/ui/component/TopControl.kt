@@ -30,6 +30,12 @@ fun TopControl(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFF000000), Color(0x00000000))
                 )
+            )
+            .then(
+                if (orientation == "LANDSCAPE")
+                    Modifier.padding(horizontal = 32.dp)
+                else
+                    Modifier
             ),
         contentAlignment = Alignment.TopStart
     ) {

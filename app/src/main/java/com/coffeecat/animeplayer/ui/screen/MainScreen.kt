@@ -2,11 +2,13 @@ package com.coffeecat.animeplayer.ui.screen
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.os.Build
 import android.view.OrientationEventListener
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,26 +32,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import com.coffeecat.animeplayer.service.PlayerHolder
-import com.coffeecat.animeplayer.ui.component.FolderList
+import com.coffeecat.animeplayer.ui.component.MainContent
 import com.coffeecat.animeplayer.ui.component.MediaPlayer
-import com.coffeecat.animeplayer.viewmodel.MainViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen() {
 
     val context = LocalContext.current
     val activity = context as? Activity
     val uiState by PlayerHolder.uiState.collectAsState()
-    val folders = uiState.folders
     val currentMedia = uiState.currentMedia
     val isFullScreen = uiState.isFullScreen
-    val canFullScreen = uiState.canFullScreen
     val nowOrientation = uiState.nowOrientation
     val currentMediaState by rememberUpdatedState(currentMedia)
 
     LaunchedEffect(Unit) {
-        PlayerHolder.loadFolders(context)
-        PlayerHolder.initializeMediaProgressMap(context)
+        PlayerHolder.initialize(context)
     }
 
     // Launcher 必須在 Composable 中
@@ -57,7 +56,7 @@ fun MainScreen(viewModel: MainViewModel) {
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri?.let {
-            PlayerHolder.addFolder(context, it) // 呼叫 ViewModel 將資料加入 StateFlow + DataStore
+            PlayerHolder.addFolder(context, it)
         }
     }
     if(nowOrientation=="LANDSCAPE"){
@@ -117,9 +116,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
             if (currentMedia!= null) {
-                MediaPlayer(media = currentMedia,
-                    mainViewModel = viewModel)
-                // DanmuLayer() 可以疊加在這裡
+                MediaPlayer(media = currentMedia
+                )
             } else {
                 Text(
                     text = "請選擇影片",
@@ -129,10 +127,10 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         }
         if(nowOrientation!="LANDSCAPE") {
-            FolderList(
-                viewModel,
+            MainContent(
                 context,
                 onAddFolder = {
+                    PlayerHolder.toggleCanDelete(false)
                     launcher.launch(null)
                 }
             )
