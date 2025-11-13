@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer
+package com.coffeecat.player
 
 import android.os.Build
 import android.os.Bundle
@@ -7,11 +7,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
-import com.coffeecat.animeplayer.ui.screen.MainScreen
+import com.coffeecat.player.ui.screen.MainScreen
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.util.UnstableApi
-import com.coffeecat.animeplayer.service.PlayerHolder
+import com.coffeecat.player.service.PlayerHolder
 
 class MainActivity : ComponentActivity() {
 

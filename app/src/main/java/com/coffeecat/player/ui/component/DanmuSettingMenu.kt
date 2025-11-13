@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.component
+package com.coffeecat.player.ui.component
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.coffeecat.animeplayer.service.PlayerHolder
+import com.coffeecat.player.service.PlayerHolder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("AutoboxingStateCreation")

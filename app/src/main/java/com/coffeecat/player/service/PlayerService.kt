@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.service
+package com.coffeecat.player.service
 
 import android.app.PendingIntent
 import android.content.ComponentName
@@ -18,8 +18,8 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
-import com.coffeecat.animeplayer.MainActivity
-import com.coffeecat.animeplayer.R
+import com.coffeecat.player.MainActivity
+import com.coffeecat.player.R
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

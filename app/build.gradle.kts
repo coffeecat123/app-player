@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.coffeecat.animeplayer"
+    namespace = "com.coffeecat.player"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.anime_player"
+        applicationId = "com.coffeecat.player"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

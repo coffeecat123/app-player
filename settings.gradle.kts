@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "anime_player"
+rootProject.name = "player"
 include(":app")

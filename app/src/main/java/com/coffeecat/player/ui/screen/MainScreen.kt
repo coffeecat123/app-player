@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.screen
+package com.coffeecat.player.ui.screen
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -31,9 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
-import com.coffeecat.animeplayer.service.PlayerHolder
-import com.coffeecat.animeplayer.ui.component.MainContent
-import com.coffeecat.animeplayer.ui.component.MediaPlayer
+import com.coffeecat.player.service.PlayerHolder
+import com.coffeecat.player.ui.component.MainContent
+import com.coffeecat.player.ui.component.MediaPlayer
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable

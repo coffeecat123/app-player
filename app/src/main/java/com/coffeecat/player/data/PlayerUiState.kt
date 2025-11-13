@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.data
+package com.coffeecat.player.data
 
 import android.net.Uri
 

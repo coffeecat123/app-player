@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.utils
+package com.coffeecat.player.utils
 
 import kotlinx.serialization.Serializable
 

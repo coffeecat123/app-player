@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.component
+package com.coffeecat.player.ui.component
 
 import android.annotation.SuppressLint
 import android.os.Build
@@ -38,9 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
-import com.coffeecat.animeplayer.data.MediaInfo
-import com.coffeecat.animeplayer.service.PlayerHolder
-import com.coffeecat.animeplayer.ui.layer.DanmuLayer
+import com.coffeecat.player.data.MediaInfo
+import com.coffeecat.player.service.PlayerHolder
+import com.coffeecat.player.ui.layer.DanmuLayer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

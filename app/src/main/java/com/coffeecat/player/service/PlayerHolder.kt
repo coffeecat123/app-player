@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.service
+package com.coffeecat.player.service
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -21,17 +21,17 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import com.coffeecat.animeplayer.R
-import com.coffeecat.animeplayer.data.Danmu
-import com.coffeecat.animeplayer.data.FolderInfo
-import com.coffeecat.animeplayer.data.MediaInfo
-import com.coffeecat.animeplayer.data.PlayerLocation
-import com.coffeecat.animeplayer.data.PlayerUiState
-import com.coffeecat.animeplayer.utils.DanmuSettings
-import com.coffeecat.animeplayer.utils.DataStoreKeys
-import com.coffeecat.animeplayer.utils.DataStoreUtils
-import com.coffeecat.animeplayer.utils.MediaProgress
-import com.coffeecat.animeplayer.utils.Settings
+import com.coffeecat.player.R
+import com.coffeecat.player.data.Danmu
+import com.coffeecat.player.data.FolderInfo
+import com.coffeecat.player.data.MediaInfo
+import com.coffeecat.player.data.PlayerLocation
+import com.coffeecat.player.data.PlayerUiState
+import com.coffeecat.player.utils.DanmuSettings
+import com.coffeecat.player.utils.DataStoreKeys
+import com.coffeecat.player.utils.DataStoreUtils
+import com.coffeecat.player.utils.MediaProgress
+import com.coffeecat.player.utils.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

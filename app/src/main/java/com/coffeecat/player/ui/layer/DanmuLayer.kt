@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.layer
+package com.coffeecat.player.ui.layer
 
 import android.annotation.SuppressLint
 import android.graphics.BlurMaskFilter
@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import com.coffeecat.animeplayer.data.Danmu
-import com.coffeecat.animeplayer.service.PlayerHolder
+import com.coffeecat.player.data.Danmu
+import com.coffeecat.player.service.PlayerHolder
 import kotlin.math.abs
 import kotlin.math.max
 

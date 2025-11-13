@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.component
+package com.coffeecat.player.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,8 +40,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.coffeecat.animeplayer.R
-import com.coffeecat.animeplayer.service.PlayerHolder
+import com.coffeecat.player.R
+import com.coffeecat.player.service.PlayerHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

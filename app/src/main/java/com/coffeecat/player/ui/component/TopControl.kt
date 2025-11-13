@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.component
+package com.coffeecat.player.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.coffeecat.animeplayer.data.MediaInfo
+import com.coffeecat.player.data.MediaInfo
 
 @Composable
 fun TopControl(

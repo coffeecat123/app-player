@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.utils
+package com.coffeecat.player.utils
 
 import android.content.Context
 import androidx.datastore.core.DataStore

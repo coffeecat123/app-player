@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.ui.component
+package com.coffeecat.player.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

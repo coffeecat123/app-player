@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer.service
+package com.coffeecat.player.service
 
 import android.os.Bundle
 import androidx.annotation.OptIn
