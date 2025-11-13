@@ -1,4 +1,4 @@
-package com.coffeecat.animeplayer
+package com.coffeecat.player
 
 import org.junit.Test
 
