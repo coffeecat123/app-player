@@ -3,11 +3,10 @@ package com.coffeecat.player.service
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
-import android.net.ConnectivityManager
 import android.os.Build
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
-import androidx.core.content.getSystemService
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -20,7 +19,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import com.coffeecat.player.MainActivity
 import com.coffeecat.player.R
-import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,8 +34,7 @@ class PlayerService : MediaLibraryService() {
     private var autoSaveJob: Job? = null
     private lateinit var mediaSession: MediaLibrarySession
     lateinit var mediaLibrarySessionCallback: MediaLibraryCallback
-
-    private lateinit var connectivityManager: ConnectivityManager
+    private var mediaSessionReleased = true
 
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -45,44 +42,11 @@ class PlayerService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
 
+        PlayerHolder.service = this
 
         val player = PlayerHolder.exoPlayer ?: return
 
-        // 關鍵步驟：使用自訂的 CustomMediaNotificationProvider
-        setMediaNotificationProvider(
-            DefaultMediaNotificationProvider(
-                this,
-                { NOTIFICATION_ID },
-                CHANNEL_ID,
-                R.string.app_name
-            )
-                .apply {
-                    setSmallIcon(R.drawable.round_queue_music_24)
-                }
-        )
-        mediaLibrarySessionCallback = MediaLibraryCallback(this)
-
-        mediaSession =
-            MediaLibrarySession
-                .Builder(this, player, mediaLibrarySessionCallback)
-                .setSessionActivity(
-                    PendingIntent.getActivity(
-                        this,
-                        0,
-                        Intent(this, MainActivity::class.java),
-                        PendingIntent.FLAG_IMMUTABLE,
-                    ),
-                )
-                .build()
-
-        val sessionToken = SessionToken(this, ComponentName(this, PlayerService::class.java))
-        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture.addListener({ controllerFuture.get() }, MoreExecutors.directExecutor())
-
         setupPlayerListener(player)
-        updateNotification()
-
-        connectivityManager = getSystemService()!!
 
         autoSaveJob?.cancel()
         autoSaveJob = serviceScope.launch {
@@ -106,24 +70,90 @@ class PlayerService : MediaLibraryService() {
                 PlayerHolder.duration = currentDur
                 PlayerHolder.isPlaying = isPlaying
                 PlayerHolder.saveProgress(applicationContext)
-
-                updateNotification()
             }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        stopForeground(STOP_FOREGROUND_REMOVE)
         autoSaveJob?.cancel()
         PlayerHolder.saveProgress(applicationContext)
-        mediaSession.release()
+        if(!mediaSessionReleased) {
+            mediaSession.release()
+            mediaSessionReleased=true
+        }
         PlayerHolder.exoPlayer?.release()
         PlayerHolder.clear()
+        PlayerHolder.service = null
         serviceScope.cancel()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession {
         return mediaSession
+    }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+
+        if (!::mediaSession.isInitialized || mediaSessionReleased) {
+            initMediaSessionIfNeeded()
+        }
+        return START_NOT_STICKY
+    }
+    fun stopForegroundNotification() {
+        //stopForeground(STOP_FOREGROUND_REMOVE)
+        if (::mediaSession.isInitialized) {
+            mediaSession.release()
+            mediaSessionReleased = true
+        }
+    }
+    fun stopAll() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        autoSaveJob?.cancel()
+        PlayerHolder.saveProgress(applicationContext)
+        if(!mediaSessionReleased) {
+            mediaSession.release()
+            mediaSessionReleased=true
+        }
+        PlayerHolder.exoPlayer?.release()
+        PlayerHolder.clear()
+        PlayerHolder.service = null
+        serviceScope.cancel()
+        stopSelf()
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    @OptIn(UnstableApi::class)
+    fun initMediaSessionIfNeeded() {
+        val player = PlayerHolder.exoPlayer ?: return
+
+        setMediaNotificationProvider(
+            CustomMediaNotificationProvider(
+                this
+            )
+        )
+        mediaLibrarySessionCallback = MediaLibraryCallback(this)
+
+        mediaSession =
+            MediaLibrarySession
+                .Builder(this, player, mediaLibrarySessionCallback)
+                .setSessionActivity(
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        Intent(this, MainActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE,
+                    ),
+                )
+                .build()
+
+        val sessionToken = SessionToken(this, ComponentName(this, PlayerService::class.java))
+        MediaController.Builder(this, sessionToken).buildAsync()
+        //val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        //controllerFuture.addListener({ controllerFuture.get() }, MoreExecutors.directExecutor())
+
+        updateNotification()
+        mediaSessionReleased = false
     }
 
     private fun setupPlayerListener(player: ExoPlayer) {
@@ -168,10 +198,5 @@ class PlayerService : MediaLibraryService() {
                 .build()
         )
         mediaSession.setCustomLayout(buttons)
-    }
-
-    companion object {
-        private const val CHANNEL_ID = "animeplayer_channel"
-        private const val NOTIFICATION_ID = 1
     }
 }

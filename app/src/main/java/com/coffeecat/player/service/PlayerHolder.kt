@@ -21,6 +21,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaLibraryService
 import com.coffeecat.player.R
 import com.coffeecat.player.data.Danmu
 import com.coffeecat.player.data.FolderInfo
@@ -81,6 +82,7 @@ object PlayerHolder {
     var clearDanmuTrigger = mutableStateOf(false)
     var onDanmuLoaded: ((List<Danmu>) -> Unit)? = null
 
+    var service: PlayerService? = null
     suspend fun initialize(context: Context) {
         loadFolders(context)
         initializeMediaProgressMap(context)
@@ -236,7 +238,17 @@ object PlayerHolder {
                 val updatedFolders = state.folders.map {
                     if (it.uri == folder.uri) it.copy(medias = medias) else it
                 }
-                state.copy(folders = updatedFolders)
+
+                val updatedSelectedFolder =
+                    if (state.selectedFolder?.uri == folder.uri)
+                        state.selectedFolder.copy(medias = medias)
+                    else
+                        state.selectedFolder
+
+                state.copy(
+                    folders = updatedFolders,
+                    selectedFolder = updatedSelectedFolder
+                )
             }
         }
     }
@@ -248,16 +260,19 @@ object PlayerHolder {
 
             if (_uiState.value.folders.any { it.name == folderName }) return@launch
 
-            val medias = doc.listFiles()
-                .filter { it.isFile }
+            val allFiles = doc.listFiles().filter { it.isFile }.associateBy { it.name ?: "" }
+
+            val medias = allFiles.values
                 .mapNotNull { file ->
                     val name = file.name ?: return@mapNotNull null
                     val ext = getExtension(name).lowercase()
 
                     val isVideo = VIDEO_EXTS.contains(ext)
                     val isAudio = AUDIO_EXTS.contains(ext)
-
                     if (!isVideo && !isAudio) return@mapNotNull null
+
+                    val xmlName = name.replaceAfterLast('.', "xml")
+                    val xmlFile = allFiles[xmlName]
 
                     MediaInfo(
                         title = name.substringBeforeLast(".", name),
@@ -265,7 +280,8 @@ object PlayerHolder {
                         duration = 0L,
                         fileName = name,
                         extension = ext,
-                        isVideo = isVideo
+                        isVideo = isVideo,
+                        danmuUri = xmlFile?.uri
                     )
                 }
 
@@ -274,11 +290,13 @@ object PlayerHolder {
             val updatedFolders = _uiState.value.folders + FolderInfo(folderName, uri, medias)
             _uiState.update { it.copy(folders = updatedFolders) }
 
+            // 保存權限
             context.contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
 
+            // 寫入 DataStore
             val currentUris = DataStoreUtils.readPreference(
                 context,
                 DataStoreKeys.FOLDER_URIS,
@@ -286,13 +304,12 @@ object PlayerHolder {
             ).first().toMutableSet()
 
             currentUris.add(uri.toString())
-
             DataStoreUtils.savePreference(context, DataStoreKeys.FOLDER_URIS, currentUris)
-
         }
     }
-    fun selectFolder(uri: Uri?) {
-        _uiState.update { it.copy(selectedFolderUri = uri) }
+
+    fun selectFolder(folder: FolderInfo) {
+        _uiState.update { it.copy(selectedFolder = folder) }
     }
 
     fun toggleIsMainActivityVisible (a: Boolean? = null) =
@@ -319,8 +336,8 @@ object PlayerHolder {
         _uiState.update { it.copy(isDetailsVisible = a ?: !it.isDetailsVisible) }
     fun toggleAutoPlay(a: Boolean? = null) =
         _settings.update { it.copy(autoPlay = a ?: !it.autoPlay) }
-//    fun toggleBackgroundPlaying(a: Boolean? = null) =
-//        _settings.update { it.copy(backgroundPlaying = a ?: !it.backgroundPlaying) }
+    fun toggleBackgroundPlaying(a: Boolean? = null) =
+        _settings.update { it.copy(backgroundPlaying = a ?: !it.backgroundPlaying) }
 
     fun changeOrientation(a: String) {
         _uiState.update { it.copy(nowOrientation = a) }
@@ -396,10 +413,13 @@ object PlayerHolder {
             _uiState.update { it.copy(nowOrientation = "LANDSCAPE", isFullScreen = true) }
         }
     }
-    fun selectMedia(media: MediaInfo, context: Context) {
+    fun selectMedia(media: MediaInfo, context: Context,folder: FolderInfo) {
         if (_uiState.value.currentMedia == media) return
         saveProgress(context)
-        _uiState.update { it.copy(currentMedia = media) }
+        _uiState.update { it.copy(
+            currentMedia = media,
+            currentMediaFolder = folder
+        ) }
         duration=0
         clearDanmuTrigger.value=true
         play(context, media)
@@ -486,13 +506,13 @@ object PlayerHolder {
                     override fun onPlaybackStateChanged(state: Int) {
                         if (state == Player.STATE_ENDED&&_settings.value.autoPlay) {
                             val current = _uiState.value.currentMedia ?: return
-                            val folder = _uiState.value.folders.find { it.medias.contains(current) } ?: return
+                            val folder = _uiState.value.currentMediaFolder ?: return
                             val medias = folder.medias
                             val currentIndex = medias.indexOf(current)
                             val nextIndex = (currentIndex + 1) % medias.size
                             val nextMedia = medias[nextIndex]
 
-                            selectMedia(nextMedia,context)
+                            selectMedia(nextMedia,context,folder)
                         }
                     }
                 })
@@ -508,7 +528,7 @@ object PlayerHolder {
         if(saveDuration!=0L&&saveDuration-100<savedPos) {
             savedPos = 0
         }
-        val selectedFolder=_uiState.value.folders.find { it.uri == uiState.value.selectedFolderUri }
+        val selectedFolder=_uiState.value.currentMediaFolder
         exoPlayer?.apply {
             setMediaItem(
                 MediaItem.fromUri(uri).buildUpon()

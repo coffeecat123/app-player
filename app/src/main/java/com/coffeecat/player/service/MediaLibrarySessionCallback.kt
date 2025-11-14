@@ -28,37 +28,51 @@ class MediaLibraryCallback(
                 //
             }
             MediaSessionConstants.ACTION_PREVIOUS -> {
-                val currentFolder = PlayerHolder.uiState.value.folders.find {
-                    it.uri == PlayerHolder.uiState.value.selectedFolderUri
-                }
-                val currentMedia = PlayerHolder.uiState.value.currentMedia
-
-                if (currentFolder != null && currentMedia != null) {
-                    val currentIndex = currentFolder.medias.indexOfFirst { it.uri == currentMedia.uri }
-                    val previousIndex = (currentIndex-1+currentFolder.medias.size)%currentFolder.medias.size
-                    val previousMedia = currentFolder.medias[previousIndex]
-                    PlayerHolder.selectMedia(previousMedia, context)
-                }
+                handlePrevious()
             }
             MediaSessionConstants.ACTION_NEXT -> {
-                val currentFolder = PlayerHolder.uiState.value.folders.find {
-                    it.uri == PlayerHolder.uiState.value.selectedFolderUri
-                }
-                val currentMedia = PlayerHolder.uiState.value.currentMedia
-
-                if (currentFolder != null && currentMedia != null) {
-                    val currentIndex = currentFolder.medias.indexOfFirst { it.uri == currentMedia.uri }
-                    val previousIndex = (currentIndex+1+currentFolder.medias.size)%currentFolder.medias.size
-                    val previousMedia = currentFolder.medias[previousIndex]
-                    PlayerHolder.selectMedia(previousMedia, context)
-                }
+                handleNext()
             }
             MediaSessionConstants.ACTION_STOP -> {
                 val player = PlayerHolder.exoPlayer
-                player?.stop()
+                player?.pause()
+
+                PlayerHolder.service?.stopForegroundNotification()
             }
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+    }
+    private fun handlePrevious() {
+        val ui = PlayerHolder.uiState.value
+        val folder = ui.currentMediaFolder?:return
+        val list = folder.medias
+        val current = ui.currentMedia ?: return
+
+        if (list.isEmpty()) return
+
+        val index = list.indexOfFirst { it.uri == current.uri }
+        if (index == -1) return
+
+        val previousIndex = (index - 1 + list.size) % list.size
+        val previousMedia = list[previousIndex]
+
+        PlayerHolder.selectMedia(previousMedia, context,folder)
+    }
+    private fun handleNext() {
+        val ui = PlayerHolder.uiState.value
+        val folder = ui.currentMediaFolder?:return
+        val list = folder.medias
+        val current = ui.currentMedia ?: return
+
+        if (list.isEmpty()) return
+
+        val index = list.indexOfFirst { it.uri == current.uri }
+        if (index == -1) return
+
+        val nextIndex = (index + 1) % list.size
+        val nextMedia = list[nextIndex]
+
+        PlayerHolder.selectMedia(nextMedia, context,folder)
     }
 
     @OptIn(UnstableApi::class)

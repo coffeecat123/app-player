@@ -56,8 +56,7 @@ fun MainContent(
     val folders = uiState.folders
     val canDelete = uiState.canDelete
     val isDetailsVisible = uiState.isDetailsVisible
-    val selectedFolderUri = uiState.selectedFolderUri
-    val selectedFolder = folders.find { it.uri == selectedFolderUri }
+    val selectedFolder = uiState.selectedFolder
     val mediaProgressMap by PlayerHolder.mediaProgressMap.collectAsState(initial = emptyMap())
 
     val formatMillis: (Long) -> String = { millis ->
@@ -195,7 +194,7 @@ fun MainContent(
                             shape = RoundedCornerShape(0.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { PlayerHolder.selectMedia(media, context) },
+                                .clickable { PlayerHolder.selectMedia(media, context,selectedFolder) },
                             elevation = CardDefaults.cardElevation(0.dp),
                             colors = CardDefaults.cardColors(containerColor = backgroundColor)
                         ) {
@@ -246,7 +245,7 @@ fun MainContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    PlayerHolder.selectFolder(folder.uri)
+                                    PlayerHolder.selectFolder(folder)
                                     PlayerHolder.updateLocation(PlayerLocation.FOLDER)
                                     PlayerHolder.loadMediasInFolder(context, folder)
                                 },
@@ -269,7 +268,7 @@ fun MainContent(
                                     modifier = Modifier.weight(1f) // 占據剩餘空間
                                 )
 
-                                if (canDelete) {
+                                if (canDelete&&folder.uri== selectedFolder?.uri) {
                                     Spacer(modifier = Modifier.width(8.dp)) // 適當間距
                                     IconButton(
                                         onClick = { PlayerHolder.removeFolder(context, folder) },
@@ -332,32 +331,32 @@ fun MainContent(
                             }
 
                             // Background Playing Switch
-//                            Row(
-//                                verticalAlignment = Alignment.CenterVertically,
-//                                modifier = Modifier
-//                                    .fillMaxWidth()
-//                                    .padding(vertical = 6.dp)
-//                            ) {
-//                                Text(
-//                                    "Background Playing",
-//                                    fontSize = 18.sp,
-//                                    color = Color(0xFFEEEEEE),
-//                                    modifier = Modifier.weight(1f)
-//                                )
-//                                Switch(
-//                                    checked = settings.backgroundPlaying,
-//                                    onCheckedChange = {
-//                                        PlayerHolder.toggleBackgroundPlaying()
-//                                        PlayerHolder.saveSettings (context)
-//                                                      },
-//                                    colors = SwitchDefaults.colors(
-//                                        checkedThumbColor = Color(0xFFEEEEEE),
-//                                        checkedTrackColor = Color(0xFFBBBBBB),
-//                                        uncheckedThumbColor = Color(0xFF666666),
-//                                        uncheckedTrackColor = Color(0xFF444444)
-//                                    )
-//                                )
-//                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                Text(
+                                    "Background Playing",
+                                    fontSize = 18.sp,
+                                    color = Color(0xFFEEEEEE),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Switch(
+                                    checked = settings.backgroundPlaying,
+                                    onCheckedChange = {
+                                        PlayerHolder.toggleBackgroundPlaying()
+                                        PlayerHolder.saveSettings (context)
+                                                      },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color(0xFFEEEEEE),
+                                        checkedTrackColor = Color(0xFFBBBBBB),
+                                        uncheckedThumbColor = Color(0xFF666666),
+                                        uncheckedTrackColor = Color(0xFF444444)
+                                    )
+                                )
+                            }
                         }
                     }
                 }

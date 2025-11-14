@@ -120,7 +120,7 @@ fun MainScreen() {
                 )
             } else {
                 Text(
-                    text = "請選擇影片",
+                    text = "select a media",
                     color = Color.White,
                     modifier = Modifier.align(Alignment.Center)
                 )

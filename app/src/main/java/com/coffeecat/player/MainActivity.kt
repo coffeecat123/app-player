@@ -1,5 +1,6 @@
 package com.coffeecat.player
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -12,6 +13,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.util.UnstableApi
 import com.coffeecat.player.service.PlayerHolder
+import com.coffeecat.player.service.PlayerService
 
 class MainActivity : ComponentActivity() {
 
@@ -40,6 +42,11 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         PlayerHolder.toggleIsMainActivityVisible(false)
+        if(!PlayerHolder.settings.value.backgroundPlaying){
+            val intent = Intent(this, PlayerService::class.java)
+            stopService(intent)
+            PlayerHolder.service?.stopAll()
+        }
     }
 }
 

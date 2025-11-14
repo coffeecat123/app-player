@@ -10,11 +10,12 @@ enum class PlayerLocation {
 data class PlayerUiState(
     val folders: List<FolderInfo> = emptyList(),
     val currentMedia: MediaInfo? = null,
+    val currentMediaFolder: FolderInfo? = null,
     val isFullScreen: Boolean = false,
     val canFullScreen: Boolean = false,
     val nowOrientation: String = "PORTRAIT",
     val location: PlayerLocation = PlayerLocation.HOME,
-    val selectedFolderUri: Uri? = null,
+    val selectedFolder: FolderInfo? = null,
     val canDelete: Boolean = false,
     val currentPosition: Long = 0L,
     val controlsVisible: Boolean = true,
