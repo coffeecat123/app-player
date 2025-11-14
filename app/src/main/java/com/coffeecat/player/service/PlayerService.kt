@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
-import android.util.Log
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.media3.common.C
@@ -12,7 +11,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
-import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession

@@ -1,7 +1,5 @@
 package com.coffeecat.player.data
 
-import android.net.Uri
-
 enum class PlayerLocation {
     HOME,
     FOLDER,
