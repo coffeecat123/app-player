@@ -192,7 +192,7 @@ fun MediaPlayer(
                                     val nexPos = (exoPlayer.currentPosition + skippingMs)
                                         .coerceIn(0, exoPlayer.duration)
                                     PlayerHolder.draggingSeekPosMs = nexPos
-                                    PlayerHolder.currentPosition = nexPos
+                                    PlayerHolder.exoplayerCurrentPosition = nexPos
                                     skippingtime = skippingMs
                                     change.consume()
                                 }

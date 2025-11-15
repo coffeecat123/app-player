@@ -35,6 +35,7 @@ import com.coffeecat.player.utils.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -67,7 +68,7 @@ object PlayerHolder {
     var lastPlayingState by mutableStateOf(false)
 
     var duration by mutableStateOf(0L)
-    var currentPosition by mutableStateOf(0L)
+    var exoplayerCurrentPosition by mutableStateOf(0L)
     var isPlaying by mutableStateOf(false)
     var playbackSpeed by mutableStateOf(1f)
 
@@ -82,6 +83,7 @@ object PlayerHolder {
     var onDanmuLoaded: ((List<Danmu>) -> Unit)? = null
 
     var service: PlayerService? = null
+    var selectMediaReadyCount=-1
     suspend fun initialize(context: Context) {
         loadFolders(context)
         initializeMediaProgressMap(context)
@@ -156,7 +158,7 @@ object PlayerHolder {
         if (dur <= 0L) return
         _mediaProgressMap.update { map ->
             map.toMutableMap().apply {
-                put(media.uri.toString(), MediaProgress(currentPosition, dur))
+                put(media.uri.toString(), MediaProgress(exoplayerCurrentPosition, dur))
             }
         }
         serviceScope.launch(Dispatchers.IO){
@@ -412,8 +414,13 @@ object PlayerHolder {
             _uiState.update { it.copy(nowOrientation = "LANDSCAPE", isFullScreen = true) }
         }
     }
+
+    @OptIn(UnstableApi::class)
     fun selectMedia(media: MediaInfo, context: Context,folder: FolderInfo) {
         if (_uiState.value.currentMedia == media) return
+        if(selectMediaReadyCount in 0..1)return
+        Log.d("PlayerHolder", "selectMediaReadyCount: $selectMediaReadyCount")
+        selectMediaReadyCount=0
         saveProgress(context)
         _uiState.update { it.copy(
             currentMedia = media,
@@ -432,6 +439,7 @@ object PlayerHolder {
         val danmuUri = media.danmuUri ?: run {
             Log.d("Danmu", "該影片沒有設定彈幕 URI")
             onDanmuLoaded?.invoke(listOf())
+            selectMediaReadyCount++
             return
         }
 
@@ -448,9 +456,11 @@ object PlayerHolder {
                     danmuList.sortBy { it.startTime }
                     onDanmuLoaded?.invoke(list)
                     Log.d("Danmu", "成功載入 ${list.size} 條彈幕")
+                    selectMediaReadyCount++
                 }
             } catch (e: Exception) {
                 Log.e("Danmu", "讀取彈幕失敗: ${e.message}")
+                selectMediaReadyCount++
             }
         }
     }
@@ -503,6 +513,9 @@ object PlayerHolder {
             exoPlayer = ExoPlayer.Builder(context).build().apply {
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_READY) {
+                            selectMediaReadyCount++
+                        }
                         if (state == Player.STATE_ENDED&&_settings.value.autoPlay) {
                             val current = _uiState.value.currentMedia ?: return
                             val folder = _uiState.value.currentMediaFolder ?: return
@@ -511,7 +524,9 @@ object PlayerHolder {
                             val nextIndex = (currentIndex + 1) % medias.size
                             val nextMedia = medias[nextIndex]
 
-                            selectMedia(nextMedia,context,folder)
+                            exoplayerCurrentPosition = exoPlayer?.currentPosition ?:return
+                            Log.d("PlayerHolder", "exoplayerCurrentPosition: $exoplayerCurrentPosition")
+                            selectMedia(nextMedia,context,folder )
                         }
                     }
                 })
@@ -524,7 +539,8 @@ object PlayerHolder {
 
         var savedPos = _mediaProgressMap.value[uri.toString()]?.current ?: 0L
         val saveDuration = _mediaProgressMap.value[uri.toString()]?.duration ?: 0L
-        if(saveDuration!=0L&&saveDuration-100<savedPos) {
+        Log.d("PlayerHolder", "savedPos: $savedPos, saveDuration: $saveDuration")
+        if(saveDuration!=0L&&saveDuration-500<savedPos) {
             savedPos = 0
         }
         val selectedFolder=_uiState.value.currentMediaFolder
@@ -548,12 +564,16 @@ object PlayerHolder {
         playbackSpeed = 1f
         val intent = Intent(context, PlayerService::class.java)
         ContextCompat.startForegroundService(context, intent)
+        serviceScope.launch {
+            delay(5000)
+            selectMediaReadyCount++
+        }
     }
 
     fun clear() {
         exoPlayer?.release()
         exoPlayer = null
-        currentPosition = 0
+        exoplayerCurrentPosition = 0
         duration = 0
         isPlaying = false
         draggingSeekPosMs = null

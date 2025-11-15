@@ -213,9 +213,9 @@ fun DanmuLayer(
                 lastTime = now
 
                 if (PlayerHolder.isPlaying && isDanmuEnabled) {
-                    val currentTimeMs = PlayerHolder.currentPosition
+                    val currentTimeMs = PlayerHolder.exoplayerCurrentPosition
 
-                    triggerDanmus(PlayerHolder.currentPosition)
+                    triggerDanmus(PlayerHolder.exoplayerCurrentPosition)
                     processBuffer(currentTimeMs)
 
                     // 移動 activeDanmus

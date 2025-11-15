@@ -189,7 +189,7 @@ fun PlayerSlider(
     modifier: Modifier = Modifier
 ) {
     val exoPlayer = PlayerHolder.exoPlayer ?: return
-    val pos = PlayerHolder.currentPosition
+    val pos = PlayerHolder.exoplayerCurrentPosition
     val duration = PlayerHolder.duration
     var seekJob by remember { mutableStateOf<Job?>(null) }
 
@@ -210,7 +210,7 @@ fun PlayerSlider(
                 if (PlayerHolder.draggingSeekPosMs == null && seekJob == null)
                     PlayerHolder.lastPlayingState = exoPlayer.isPlaying
                 PlayerHolder.draggingSeekPosMs = newValue.toLong()
-                PlayerHolder.currentPosition = newValue.toLong()
+                PlayerHolder.exoplayerCurrentPosition = newValue.toLong()
                 exoPlayer.pause()
                 seekJob?.cancel()
                 seekJob = scope.launch {
@@ -220,7 +220,7 @@ fun PlayerSlider(
             },
             onValueChangeFinished = {
                 seekJob?.cancel()
-                exoPlayer.seekTo(PlayerHolder.currentPosition)
+                exoPlayer.seekTo(PlayerHolder.exoplayerCurrentPosition)
                 if (PlayerHolder.lastPlayingState)
                     exoPlayer.play()
                 PlayerHolder.draggingSeekPosMs = null

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,9 +29,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -182,19 +185,28 @@ fun MainContent(
                         val p =
                             progress?.let { if (it.duration > 0) it.current / it.duration.toFloat() else 0f }
                                 ?: 0f
+                        val isFinished = p > 0.9f
                         val currentText = progress?.let { formatMillis(it.current) } ?: "00:00"
                         val durationText = progress?.let { formatMillis(it.duration) } ?: "00:00"
                         val isSelected = selectedMedia?.uri == media.uri
                         val backgroundColor = when {
-                            isSelected && p > 0.9f -> Color(0x1FFFFFFF) // 選中且完成，半透明
+                            isSelected && isFinished -> Color(0x1FFFFFFF) // 選中且完成，半透明
                             isSelected -> Color(0x43FFFFFF)           // 選中但未完成，亮一點
                             else -> Color.Transparent
                         }
+                        val textColor = if (isFinished) Color(0x88EEEEEE) else Color(0xFFEEEEEE)
+                        val interactionSource = remember { MutableInteractionSource() }
                         Card(
                             shape = RoundedCornerShape(0.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { PlayerHolder.selectMedia(media, context,selectedFolder) },
+                                .clickable (
+                                    interactionSource = interactionSource,
+                                    indication = ripple(
+                                        color = Color.White,
+                                        bounded = true
+                                    )
+                                ) { PlayerHolder.selectMedia(media, context,selectedFolder) },
                             elevation = CardDefaults.cardElevation(0.dp),
                             colors = CardDefaults.cardColors(containerColor = backgroundColor)
                         ) {
@@ -208,9 +220,7 @@ fun MainContent(
                                     Text(
                                         text = media.fileName,
                                         fontSize = 18.sp,
-                                        color = if (p > 0.9f) Color(0x88EEEEEE) else Color(
-                                            0xFFEEEEEE
-                                        ),
+                                        color = textColor,
                                         maxLines = if (isDetailsVisible) 2 else 1,
                                         overflow = TextOverflow.Ellipsis,
                                         lineHeight = 24.sp

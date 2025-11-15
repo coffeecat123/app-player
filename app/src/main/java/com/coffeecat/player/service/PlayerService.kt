@@ -63,7 +63,7 @@ class PlayerService : MediaLibraryService() {
                 val isPlaying = playerState.third
 
                 if (PlayerHolder.draggingSeekPosMs == null) {
-                    PlayerHolder.currentPosition = currentPos
+                    PlayerHolder.exoplayerCurrentPosition = currentPos
                 }
                 PlayerHolder.duration = currentDur
                 PlayerHolder.isPlaying = isPlaying
