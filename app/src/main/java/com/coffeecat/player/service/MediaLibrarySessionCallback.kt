@@ -11,9 +11,9 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
-class MediaLibraryCallback(
+class MediaSessionCallback(
     private val context: android.content.Context
-) : MediaLibrarySession.Callback {
+) : MediaSession.Callback {
 
     /** 處理自訂按鈕 */
     @OptIn(UnstableApi::class)
@@ -91,7 +91,6 @@ class MediaLibraryCallback(
                 .build(),
             connectionResult.availablePlayerCommands
                 .buildUpon()
-                // 由於您有自訂的播放/暫停按鈕，移除標準的播放/暫停指令
                 //.remove(Player.COMMAND_PLAY_PAUSE)
                 // 由於您有自訂的上一曲/下一曲按鈕，移除標準的跳轉指令
                 .remove(Player.COMMAND_SEEK_TO_NEXT)
