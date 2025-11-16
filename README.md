@@ -121,3 +121,5 @@ Copyright (c) [2025] [coffeecat123]
 * **ExoPlayer (Media3)** - 強大且靈活的 Android 媒體播放函式庫。
 * **Jetpack Compose** - 現代化、聲明式的 Android UI 工具包。
 * **AndroidX Media3** - Android 媒體功能的整合函式庫。
+
+> （註：文件部分內容可能由 AI 產生）
