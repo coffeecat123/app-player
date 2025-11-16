@@ -524,7 +524,7 @@ object PlayerHolder {
                             val nextIndex = (currentIndex + 1) % medias.size
                             val nextMedia = medias[nextIndex]
 
-                            exoplayerCurrentPosition = exoPlayer?.currentPosition ?:return
+                            exoplayerCurrentPosition = duration
                             Log.d("PlayerHolder", "exoplayerCurrentPosition: $exoplayerCurrentPosition")
                             selectMedia(nextMedia,context,folder )
                         }
