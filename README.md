@@ -75,11 +75,28 @@
 
 ## 📸 截圖展示 (Screenshots)
 
-| 畫面名稱 | 截圖 |
-| :---: | :---: |
-| **主畫面 (Main Screen)** | ![主畫面](images/1.jpg) |
-| **播放介面 (Playback Screen)** | ![播放介面](images/2.jpg) |
-| **彈幕設定 (Danmu Settings)** | ![彈幕設定](images/3.jpg) |
+<table width="100%">
+  <thead>
+    <tr>
+      <th align="center">主畫面 (Main Screen)</th>
+      <th align="center">播放介面 (Playback Screen)</th>
+      <th align="center">彈幕設定 (Danmu Settings)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center">
+        <img src="images/1.jpg" alt="CoffeeCat Player 主畫面截圖" height="500" style="max-width: 100%;">
+      </td>
+      <td align="center">
+        <img src="images/2.jpg" alt="CoffeeCat Player 播放介面截圖" height="500" style="max-width: 100%;">
+      </td>
+      <td align="center">
+        <img src="images/3.jpg" alt="CoffeeCat Player 彈幕設定截圖" height="500" style="max-width: 100%;">
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ## 🤝 貢獻指南 (Contributing)
 
