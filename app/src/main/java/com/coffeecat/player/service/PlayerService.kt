@@ -12,8 +12,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
-import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionToken
 import com.coffeecat.player.MainActivity
 import com.coffeecat.player.R
@@ -27,11 +27,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PlayerService : MediaLibraryService() {
+class PlayerService : MediaSessionService() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var autoSaveJob: Job? = null
-    private lateinit var mediaSession: MediaLibrarySession
-    lateinit var mediaLibrarySessionCallback: MediaLibraryCallback
+    private lateinit var mediaSession: MediaSession
+    lateinit var mediaSessionCallback: MediaSessionCallback
     private var mediaSessionReleased = true
 
 
@@ -86,8 +86,7 @@ class PlayerService : MediaLibraryService() {
         PlayerHolder.service = null
         serviceScope.cancel()
     }
-
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession {
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession {
         return mediaSession
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -130,11 +129,12 @@ class PlayerService : MediaLibraryService() {
                 this
             )
         )
-        mediaLibrarySessionCallback = MediaLibraryCallback(this)
+        mediaSessionCallback = MediaSessionCallback(this)
 
         mediaSession =
-            MediaLibrarySession
-                .Builder(this, player, mediaLibrarySessionCallback)
+            MediaSession
+                .Builder(this, player)
+                .setCallback(mediaSessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
