@@ -27,6 +27,7 @@ import com.coffeecat.player.data.FolderInfo
 import com.coffeecat.player.data.MediaInfo
 import com.coffeecat.player.data.PlayerLocation
 import com.coffeecat.player.data.PlayerUiState
+import com.coffeecat.player.data.RepeatMode
 import com.coffeecat.player.utils.DanmuSettings
 import com.coffeecat.player.utils.DataStoreKeys
 import com.coffeecat.player.utils.DataStoreUtils
@@ -84,6 +85,8 @@ object PlayerHolder {
 
     var service: PlayerService? = null
     var selectMediaReadyCount=-1
+
+    val playedIndices = mutableSetOf<Int>()
     suspend fun initialize(context: Context) {
         loadFolders(context)
         initializeMediaProgressMap(context)
@@ -335,10 +338,18 @@ object PlayerHolder {
 
     fun toggleIsDetailsVisible(a: Boolean? = null) =
         _uiState.update { it.copy(isDetailsVisible = a ?: !it.isDetailsVisible) }
+    fun toggleIsShuffle(a: Boolean? = null) =
+        _uiState.update { it.copy(isShuffle = a ?: !it.isShuffle) }
+    fun toggleRepeatMode(){
+        _uiState.update { it.copy(repeatMode = it.repeatMode.next()) }
+    }
+
     fun toggleAutoPlay(a: Boolean? = null) =
         _settings.update { it.copy(autoPlay = a ?: !it.autoPlay) }
     fun toggleBackgroundPlaying(a: Boolean? = null) =
         _settings.update { it.copy(backgroundPlaying = a ?: !it.backgroundPlaying) }
+    fun toggleAlwaysRestart(a: Boolean? = null) =
+        _settings.update { it.copy(alwaysRestart = a ?: !it.alwaysRestart) }
 
     fun changeOrientation(a: String) {
         _uiState.update { it.copy(nowOrientation = a) }
@@ -517,16 +528,44 @@ object PlayerHolder {
                             selectMediaReadyCount++
                         }
                         if (state == Player.STATE_ENDED&&_settings.value.autoPlay) {
-                            val current = _uiState.value.currentMedia ?: return
-                            val folder = _uiState.value.currentMediaFolder ?: return
+                            val ui = _uiState.value
+                            val current = ui.currentMedia ?: return
+                            val folder = ui.currentMediaFolder ?: return
                             val medias = folder.medias
-                            val currentIndex = medias.indexOf(current)
-                            val nextIndex = (currentIndex + 1) % medias.size
-                            val nextMedia = medias[nextIndex]
+                            if (medias.isEmpty()) return
 
-                            exoplayerCurrentPosition = duration
-                            Log.d("PlayerHolder", "exoplayerCurrentPosition: $exoplayerCurrentPosition")
-                            selectMedia(nextMedia,context,folder )
+                            val nextIndex: Int? = when {
+                                ui.repeatMode == RepeatMode.REPEAT_ONE -> medias.indexOfFirst { it.uri == current.uri }
+
+                                ui.isShuffle -> {
+                                    val candidates = medias.indices.filter { it !in playedIndices }
+                                    if (candidates.isEmpty()) {
+                                        if (ui.repeatMode == RepeatMode.REPEAT_ALL) {
+                                            playedIndices.clear()
+                                            medias.indices.random().also { playedIndices.add(it) }
+                                        } else null
+                                    } else candidates.random().also { playedIndices.add(it) }
+                                }
+
+                                ui.repeatMode == RepeatMode.NO_REPEAT -> {
+                                    val idx = medias.indexOfFirst { it.uri == current.uri }
+                                    if (idx >= medias.size - 1) null else idx + 1
+                                }
+
+                                ui.repeatMode == RepeatMode.REPEAT_ALL -> {
+                                    val idx = medias.indexOfFirst { it.uri == current.uri }
+                                    (idx + 1) % medias.size
+                                }
+
+                                else -> null
+                            }
+
+
+                            nextIndex?.let {
+                                val nextMedia = medias[it]
+                                exoplayerCurrentPosition = duration
+                                selectMedia(nextMedia, context, folder)
+                            }
                         }
                     }
                 })
@@ -542,6 +581,9 @@ object PlayerHolder {
         Log.d("PlayerHolder", "savedPos: $savedPos, saveDuration: $saveDuration")
         if(saveDuration!=0L&&saveDuration-500<savedPos) {
             savedPos = 0
+        }
+        if(_settings.value.alwaysRestart){
+            savedPos=0
         }
         val selectedFolder=_uiState.value.currentMediaFolder
         exoPlayer?.apply {

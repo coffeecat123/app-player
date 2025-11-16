@@ -102,7 +102,7 @@ class CustomMediaNotificationProvider(
                     )
                     notificationBuilder.addAction(action)
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // 跳过无法处理的按钮
             }
         }
@@ -134,7 +134,7 @@ class CustomMediaNotificationProvider(
             MediaSessionConstants.CommandMusic.customAction -> androidx.media3.common.Player.COMMAND_PLAY_PAUSE
             MediaSessionConstants.CommandPrevious.customAction -> androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
             MediaSessionConstants.CommandNext.customAction -> androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
-            MediaSessionConstants.CommandStop.customAction -> androidx.media3.common.Player.COMMAND_STOP
+            MediaSessionConstants.CommandRepeat.customAction -> androidx.media3.common.Player.COMMAND_STOP
             else -> androidx.media3.common.Player.COMMAND_PLAY_PAUSE
         }
     }

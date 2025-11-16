@@ -358,7 +358,35 @@ fun MainContent(
                                     onCheckedChange = {
                                         PlayerHolder.toggleBackgroundPlaying()
                                         PlayerHolder.saveSettings (context)
-                                                      },
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color(0xFFEEEEEE),
+                                        checkedTrackColor = Color(0xFFBBBBBB),
+                                        uncheckedThumbColor = Color(0xFF666666),
+                                        uncheckedTrackColor = Color(0xFF444444)
+                                    )
+                                )
+                            }
+
+                            // Always Restart Switch
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                Text(
+                                    "Always Restart",
+                                    fontSize = 18.sp,
+                                    color = Color(0xFFEEEEEE),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Switch(
+                                    checked = settings.alwaysRestart,
+                                    onCheckedChange = {
+                                        PlayerHolder.toggleAlwaysRestart()
+                                        PlayerHolder.saveSettings (context)
+                                    },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color(0xFFEEEEEE),
                                         checkedTrackColor = Color(0xFFBBBBBB),

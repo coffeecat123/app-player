@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.withSave
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import com.coffeecat.player.data.Danmu
@@ -241,7 +242,7 @@ fun DanmuLayer(
         updateLinePositions()
         updateDensity()
     }) {
-        val a=redrawTrigger.value
+        redrawTrigger.value
         if(PlayerHolder.uiState.value.isDanmuEnabled) {
             paint.textSize = danmuSizePx
             activeDanmus.forEach { dm ->
@@ -250,23 +251,22 @@ fun DanmuLayer(
                 val textPath = android.graphics.Path()
                 paint.getTextPath(dm.text, 0, dm.text.length, dm.x, baselineY, textPath)
 
-                drawContext.canvas.nativeCanvas.save()
-                drawContext.canvas.nativeCanvas.clipOutPath(textPath)
+                drawContext.canvas.withSave {
+                    drawContext.canvas.nativeCanvas.clipOutPath(textPath)
 
-                val shadowPaint = Paint(paint).apply {
-                    color = 0xFF000000.toInt()
-                    alpha = 128
-                    maskFilter = BlurMaskFilter(2f, BlurMaskFilter.Blur.NORMAL) // 2px blur
+                    val shadowPaint = Paint(paint).apply {
+                        color = 0xFF000000.toInt()
+                        alpha = 128
+                        maskFilter = BlurMaskFilter(2f, BlurMaskFilter.Blur.NORMAL) // 2px blur
+                    }
+
+                    drawContext.canvas.nativeCanvas.drawText(
+                        dm.text,
+                        dm.x + 1f,
+                        baselineY + 1f,
+                        shadowPaint
+                    )
                 }
-
-                drawContext.canvas.nativeCanvas.drawText(
-                    dm.text,
-                    dm.x + 1f,
-                    baselineY + 1f,
-                    shadowPaint
-                )
-                drawContext.canvas.nativeCanvas.restore()
-
                 paint.color = dm.color
                 paint.alpha = (danmuOpacity * 255).toInt()
                 drawContext.canvas.nativeCanvas.drawText(dm.text, dm.x, baselineY, paint)

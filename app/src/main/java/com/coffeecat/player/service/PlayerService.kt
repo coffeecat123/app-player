@@ -17,6 +17,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionToken
 import com.coffeecat.player.MainActivity
 import com.coffeecat.player.R
+import com.coffeecat.player.data.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -97,13 +98,6 @@ class PlayerService : MediaSessionService() {
         }
         return START_NOT_STICKY
     }
-    fun stopForegroundNotification() {
-        //stopForeground(STOP_FOREGROUND_REMOVE)
-        if (::mediaSession.isInitialized) {
-            mediaSession.release()
-            mediaSessionReleased = true
-        }
-    }
     fun stopAll() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         autoSaveJob?.cancel()
@@ -168,33 +162,36 @@ class PlayerService : MediaSessionService() {
         })
     }
 
-    private fun updateNotification() {
-        val buttons = listOf(
+    fun updateNotification() {
+        val uiState=PlayerHolder.uiState.value
+        val button1=CommandButton.Builder()
+            .setDisplayName("previous")
+            .setIconResId(R.drawable.round_skip_previous_36)
+            .setSessionCommand(MediaSessionConstants.CommandPrevious)
+            .build()
 
-            CommandButton.Builder()
-                .setDisplayName("previous")
-                .setIconResId(R.drawable.round_skip_previous_36)
-                .setSessionCommand(MediaSessionConstants.CommandPrevious)
-                .build(),
-
-            CommandButton.Builder()
-                .setDisplayName("next")
-                .setIconResId(R.drawable.round_skip_next_36)
-                .setSessionCommand(MediaSessionConstants.CommandNext)
-                .build(),
-
-            CommandButton.Builder()
-                .setDisplayName("music")
-                .setIconResId(R.drawable.round_music_note_36)
-                .setSessionCommand(MediaSessionConstants.CommandMusic)
-                .build(),
-
-            CommandButton.Builder()
-                .setDisplayName("stop")
-                .setIconResId(R.drawable.round_close_36)
-                .setSessionCommand(MediaSessionConstants.CommandStop)
-                .build()
-        )
+        val button2=CommandButton.Builder()
+            .setDisplayName("next")
+            .setIconResId(R.drawable.round_skip_next_36)
+            .setSessionCommand(MediaSessionConstants.CommandNext)
+            .build()
+        val musicIcon=if(uiState.isShuffle) R.drawable.outline_shuffle_on_24 else R.drawable.round_music_note_36
+        val button3=CommandButton.Builder()
+        .setDisplayName("music")
+            .setIconResId(musicIcon)
+            .setSessionCommand(MediaSessionConstants.CommandMusic)
+            .build()
+        val repeatIcon=when(uiState.repeatMode){
+            RepeatMode.NO_REPEAT -> R.drawable.rounded_repeat_24
+            RepeatMode.REPEAT_ONE -> R.drawable.outline_repeat_one_on_24
+            RepeatMode.REPEAT_ALL -> R.drawable.rounded_repeat_on_24
+        }
+        val button4=CommandButton.Builder()
+            .setDisplayName("repeatMode")
+            .setIconResId(repeatIcon)
+            .setSessionCommand(MediaSessionConstants.CommandRepeat)
+            .build()
+        val buttons = listOf(button1,button2,button3,button4)
         mediaSession.setCustomLayout(buttons)
     }
 }

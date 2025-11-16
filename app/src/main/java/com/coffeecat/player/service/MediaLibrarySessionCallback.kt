@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.coffeecat.player.data.RepeatMode
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
@@ -24,7 +25,8 @@ class MediaSessionCallback(
     ): ListenableFuture<SessionResult> {
         when (customCommand.customAction) {
             MediaSessionConstants.ACTION_MUSIC -> {
-                //
+                PlayerHolder.toggleIsShuffle()
+                PlayerHolder.service?.updateNotification()
             }
             MediaSessionConstants.ACTION_PREVIOUS -> {
                 handlePrevious()
@@ -32,11 +34,15 @@ class MediaSessionCallback(
             MediaSessionConstants.ACTION_NEXT -> {
                 handleNext()
             }
-            MediaSessionConstants.ACTION_STOP -> {
-                val player = PlayerHolder.exoPlayer
-                player?.pause()
-
-                PlayerHolder.service?.stopForegroundNotification()
+            MediaSessionConstants.ACTION_REPEAT -> {
+                PlayerHolder.toggleRepeatMode()
+                if(PlayerHolder.uiState.value.repeatMode== RepeatMode.REPEAT_ONE){
+                    PlayerHolder.exoPlayer?.repeatMode =Player.REPEAT_MODE_ONE
+                }
+                else{
+                    PlayerHolder.exoPlayer?.repeatMode = Player.REPEAT_MODE_OFF
+                }
+                PlayerHolder.service?.updateNotification()
             }
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -86,7 +92,7 @@ class MediaSessionCallback(
                 .add(MediaSessionConstants.CommandMusic)
                 .add(MediaSessionConstants.CommandPrevious)
                 .add(MediaSessionConstants.CommandNext)
-                .add(MediaSessionConstants.CommandStop)
+                .add(MediaSessionConstants.CommandRepeat)
                 .build(),
             connectionResult.availablePlayerCommands
                 .buildUpon()
