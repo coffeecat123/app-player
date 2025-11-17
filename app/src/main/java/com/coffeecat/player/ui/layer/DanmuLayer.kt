@@ -186,6 +186,9 @@ fun DanmuLayer(
         }
     }
     LaunchedEffect(Unit) {
+        if(PlayerHolder.danmuList.isNotEmpty()&&danmus.isEmpty()){
+            danmus.addAll(PlayerHolder.danmuList)
+        }
         PlayerHolder.onDanmuLoaded = { list ->
             // 取得所有彈幕
             danmus.clear()
@@ -243,6 +246,8 @@ fun DanmuLayer(
         updateDensity()
     }) {
         redrawTrigger.value
+        val shadowOpacity=(32+96*danmuOpacity).toInt()
+        val paintAlpha = (danmuOpacity * 255).toInt()
         if(PlayerHolder.uiState.value.isDanmuEnabled) {
             paint.textSize = danmuSizePx
             activeDanmus.forEach { dm ->
@@ -256,7 +261,7 @@ fun DanmuLayer(
 
                     val shadowPaint = Paint(paint).apply {
                         color = 0xFF000000.toInt()
-                        alpha = 128
+                        alpha = shadowOpacity
                         maskFilter = BlurMaskFilter(2f, BlurMaskFilter.Blur.NORMAL) // 2px blur
                     }
 
@@ -268,7 +273,7 @@ fun DanmuLayer(
                     )
                 }
                 paint.color = dm.color
-                paint.alpha = (danmuOpacity * 255).toInt()
+                paint.alpha = paintAlpha
                 drawContext.canvas.nativeCanvas.drawText(dm.text, dm.x, baselineY, paint)
             }
         }

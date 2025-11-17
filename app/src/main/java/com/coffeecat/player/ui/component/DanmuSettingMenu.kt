@@ -102,7 +102,7 @@ fun DanmuSettingMenu() {
             onValueChangeFinished = {
                 PlayerHolder.saveDanmuSettings(context)
             },
-            valueRange = 0.1f..1f,
+            valueRange = 0.01f..1f,
             modifier = Modifier.padding(horizontal = 8.dp),
             thumb = {
                 Box(

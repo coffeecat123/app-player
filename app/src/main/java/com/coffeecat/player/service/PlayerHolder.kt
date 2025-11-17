@@ -447,6 +447,7 @@ object PlayerHolder {
 
     @OptIn(UnstableApi::class)
     fun loadDanmusForMedia(context: Context, media: MediaInfo) {
+        danmuList.clear()
         val danmuUri = media.danmuUri ?: run {
             Log.d("Danmu", "該影片沒有設定彈幕 URI")
             onDanmuLoaded?.invoke(listOf())
