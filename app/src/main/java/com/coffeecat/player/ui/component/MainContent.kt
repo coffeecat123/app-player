@@ -60,6 +60,7 @@ fun MainContent(
     val canDelete = uiState.canDelete
     val isDetailsVisible = uiState.isDetailsVisible
     val selectedFolder = uiState.selectedFolder
+    val currentMediaFolder = uiState.currentMediaFolder
     val mediaProgressMap by PlayerHolder.mediaProgressMap.collectAsState(initial = emptyMap())
 
     val formatMillis: (Long) -> String = { millis ->
@@ -91,7 +92,6 @@ fun MainContent(
                 .background(color = Color(0xFF404040))){
             when (uiState.location) {
                 PlayerLocation.FOLDER -> {
-                    if(selectedFolder==null)return@Row
                     IconButton(onClick = {
                         PlayerHolder.goBack()
                     }) {
@@ -101,6 +101,7 @@ fun MainContent(
                             tint = Color(0xFFEEEEEE)
                         )
                     }
+                    if(selectedFolder==null)return@Row
                     Text(
                         selectedFolder.name,
                         fontSize = 24.sp,
@@ -200,13 +201,13 @@ fun MainContent(
                             shape = RoundedCornerShape(0.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable (
+                                .clickable(
                                     interactionSource = interactionSource,
                                     indication = ripple(
                                         color = Color.White,
                                         bounded = true
                                     )
-                                ) { PlayerHolder.selectMedia(media, context,selectedFolder) },
+                                ) { PlayerHolder.selectMedia(media, context, selectedFolder) },
                             elevation = CardDefaults.cardElevation(0.dp),
                             colors = CardDefaults.cardColors(containerColor = backgroundColor)
                         ) {
@@ -278,7 +279,7 @@ fun MainContent(
                                     modifier = Modifier.weight(1f) // 占據剩餘空間
                                 )
 
-                                if (canDelete&&folder.uri== selectedFolder?.uri) {
+                                if (canDelete&&folder.uri != currentMediaFolder?.uri) {
                                     Spacer(modifier = Modifier.width(8.dp)) // 適當間距
                                     IconButton(
                                         onClick = { PlayerHolder.removeFolder(context, folder) },
