@@ -41,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coffeecat.player.R
+import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.service.PlayerHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -50,7 +51,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ControlBar(
-    orientation: String,
+    orientation: Orientation,
     modifier: Modifier = Modifier
 ) {
     val exoPlayer = PlayerHolder.exoPlayer ?: return
@@ -79,7 +80,7 @@ fun ControlBar(
                 )
             )
             .then(
-                if (orientation == "LANDSCAPE")
+                if (orientation == Orientation.LANDSCAPE)
                     Modifier.padding(horizontal = 32.dp)
                 else
                     Modifier
@@ -90,7 +91,7 @@ fun ControlBar(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start,
-            modifier = if (orientation == "LANDSCAPE")
+            modifier = if (orientation == Orientation.LANDSCAPE)
                 Modifier.fillMaxWidth().padding(bottom = 4.dp)
             else
                 Modifier.fillMaxWidth().padding(bottom = 0.dp)
@@ -107,7 +108,7 @@ fun ControlBar(
                 )
             }
 
-            if(orientation!="LANDSCAPE") {
+            if(orientation!=Orientation.LANDSCAPE) {
                 PlayerSlider(scope, modifier = Modifier.weight(1f))
             }else{
                 // 播放速度選擇
@@ -168,7 +169,7 @@ fun ControlBar(
         }
 
         // Slider 位置根據方向調整
-        if (orientation == "LANDSCAPE") {
+        if (orientation == Orientation.LANDSCAPE) {
             // LANDSCAPE 上方 Row
             Row(
                 modifier = Modifier

@@ -25,6 +25,7 @@ import com.coffeecat.player.R
 import com.coffeecat.player.data.Danmu
 import com.coffeecat.player.data.FolderInfo
 import com.coffeecat.player.data.MediaInfo
+import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.data.PlayerLocation
 import com.coffeecat.player.data.PlayerUiState
 import com.coffeecat.player.data.RepeatMode
@@ -319,9 +320,6 @@ object PlayerHolder {
     fun toggleIsMainActivityVisible (a: Boolean? = null) =
         _uiState.update { it.copy(isMainActivityVisible  = a ?: !it.isMainActivityVisible ) }
 
-    fun toggleFullScreen(a: Boolean? = null) =
-        _uiState.update { it.copy(isFullScreen = a ?: !it.isFullScreen) }
-
     fun toggleCanDelete(a: Boolean? = null) =
         _uiState.update { it.copy(canDelete = a ?: !it.canDelete) }
 
@@ -351,7 +349,7 @@ object PlayerHolder {
     fun toggleAlwaysRestart(a: Boolean? = null) =
         _settings.update { it.copy(alwaysRestart = a ?: !it.alwaysRestart) }
 
-    fun changeOrientation(a: String) {
+    fun changeOrientation(a: Orientation) {
         _uiState.update { it.copy(nowOrientation = a) }
     }
     fun updateLocation(newLocation: PlayerLocation) {
@@ -413,18 +411,16 @@ object PlayerHolder {
         exoPlayer?.playbackParameters = PlaybackParameters(speed)
     }
     fun onFullScreenButtonClicked() {
-        if (_uiState.value.nowOrientation == "LANDSCAPE") {
-            _uiState.update {
-                it.copy(
-                    nowOrientation = "PORTRAIT",
-                    canFullScreen = false,
-                    isFullScreen = false
-                )
-            }
-        } else {
-            _uiState.update { it.copy(nowOrientation = "LANDSCAPE", isFullScreen = true) }
+        _uiState.update { state ->
+            state.copy(
+                nowOrientation = if (state.nowOrientation == Orientation.LANDSCAPE)
+                    Orientation.PORTRAIT
+                else
+                    Orientation.LANDSCAPE
+            )
         }
     }
+
 
     @OptIn(UnstableApi::class)
     fun selectMedia(media: MediaInfo, context: Context,folder: FolderInfo) {

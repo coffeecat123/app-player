@@ -24,6 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,9 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
+import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.service.PlayerHolder
 import com.coffeecat.player.ui.component.MainContent
 import com.coffeecat.player.ui.component.MediaPlayer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -43,10 +47,9 @@ fun MainScreen() {
     val activity = context as? Activity
     val uiState by PlayerHolder.uiState.collectAsState()
     val currentMedia = uiState.currentMedia
-    val isFullScreen = uiState.isFullScreen
     val nowOrientation = uiState.nowOrientation
     val currentMediaState by rememberUpdatedState(currentMedia)
-
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         PlayerHolder.initialize(context)
     }
@@ -59,7 +62,7 @@ fun MainScreen() {
             PlayerHolder.addFolder(context, it)
         }
     }
-    if(nowOrientation=="LANDSCAPE"){
+    if(nowOrientation==Orientation.LANDSCAPE){
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }else{
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -70,17 +73,23 @@ fun MainScreen() {
             override fun onOrientationChanged(angle: Int) {
                 Log.d("MediaPlayer", currentMediaState?.title.toString())
                 if(currentMediaState==null) return
+                if(!PlayerHolder.uiState.value.isMainActivityVisible) return
+                if(angle==-1) return
                 // angle: 0~359 度
+                Log.d("MediaPlayer", angle.toString())
                 val t=25
-                if (angle in 45+t..134-t || angle in 225+t..314-t) {
-                    if (PlayerHolder.uiState.value.canFullScreen) {
-                        PlayerHolder.changeOrientation("LANDSCAPE")
-                        PlayerHolder.toggleFullScreen(true)
-                    }
-                } else {
-                    if (!PlayerHolder.uiState.value.isFullScreen) {
+                if(angle <= t || angle >= 360 - t) {
+                    if(PlayerHolder.uiState.value.canFullScreen) return
+                    PlayerHolder.changeOrientation(Orientation.PORTRAIT)
+                    scope.launch {
+                        delay(1000)
                         PlayerHolder.toggleCanFullScreen(true)
-                        PlayerHolder.changeOrientation("PORTRAIT")
+                    }
+                }
+                else if (angle in 45+t..134-t || angle in 225+t..314-t) {
+                    if (PlayerHolder.uiState.value.canFullScreen) {
+                        PlayerHolder.changeOrientation(Orientation.LANDSCAPE)
+                        PlayerHolder.toggleCanFullScreen(false)
                     }
                 }
             }
@@ -92,7 +101,7 @@ fun MainScreen() {
     Column(modifier = Modifier.fillMaxSize()
         .background(Color(0xFF000000))
         .then(
-            if (isFullScreen)
+            if (nowOrientation==Orientation.LANDSCAPE)
                 Modifier
             else
                 Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
@@ -100,7 +109,7 @@ fun MainScreen() {
     ) {
 
         Box(
-            modifier =if (nowOrientation=="LANDSCAPE") {
+            modifier =if (nowOrientation==Orientation.LANDSCAPE) {
                 Modifier.fillMaxSize()
             } else {
                 Modifier
@@ -108,11 +117,9 @@ fun MainScreen() {
                     .aspectRatio(1920f / 1080f)
             }
         ) {
-            if(nowOrientation=="LANDSCAPE"){
+            if(nowOrientation==Orientation.LANDSCAPE){
                 BackHandler {
-                    PlayerHolder.changeOrientation("PORTRAIT")
-                    PlayerHolder.toggleCanFullScreen(false)
-                    PlayerHolder.toggleFullScreen(false)
+                    PlayerHolder.changeOrientation(Orientation.PORTRAIT)
                 }
             }
             if (currentMedia!= null) {
@@ -126,7 +133,7 @@ fun MainScreen() {
                 )
             }
         }
-        if(nowOrientation!="LANDSCAPE") {
+        if(nowOrientation!=Orientation.LANDSCAPE) {
             MainContent(
                 context,
                 onAddFolder = {

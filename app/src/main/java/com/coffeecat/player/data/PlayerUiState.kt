@@ -16,13 +16,16 @@ enum class RepeatMode {
         REPEAT_ALL -> NO_REPEAT
     }
 }
+enum class Orientation {
+    PORTRAIT,
+    LANDSCAPE;
+}
 data class PlayerUiState(
     val folders: List<FolderInfo> = emptyList(),
     val currentMedia: MediaInfo? = null,
     val currentMediaFolder: FolderInfo? = null,
-    val isFullScreen: Boolean = false,
     val canFullScreen: Boolean = false,
-    val nowOrientation: String = "PORTRAIT",
+    val nowOrientation: Orientation = Orientation.PORTRAIT,
     val location: PlayerLocation = PlayerLocation.HOME,
     val selectedFolder: FolderInfo? = null,
     val canDelete: Boolean = false,

@@ -14,11 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coffeecat.player.data.MediaInfo
+import com.coffeecat.player.data.Orientation
 
 @Composable
 fun TopControl(
     media: MediaInfo,
-    orientation:String,
+    orientation: Orientation,
     modifier: Modifier
 ) {
 
@@ -32,7 +33,7 @@ fun TopControl(
                 )
             )
             .then(
-                if (orientation == "LANDSCAPE")
+                if (orientation == Orientation.LANDSCAPE)
                     Modifier.padding(horizontal = 32.dp)
                 else
                     Modifier

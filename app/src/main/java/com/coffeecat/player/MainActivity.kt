@@ -31,7 +31,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        PlayerHolder.toggleIsMainActivityVisible(true)
         updateSystemUiForOrientation()
+    }
+    override fun onPause() {
+        super.onPause()
+        PlayerHolder.toggleIsMainActivityVisible(false)
     }
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
