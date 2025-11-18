@@ -66,6 +66,7 @@ fun MainScreen() {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }else{
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        PlayerHolder.resetTransform?.invoke()
     }
     DisposableEffect(Unit) {
         val listener = object : OrientationEventListener(context) {

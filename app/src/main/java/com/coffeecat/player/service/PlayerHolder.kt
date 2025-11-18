@@ -88,6 +88,9 @@ object PlayerHolder {
     var selectMediaReadyCount=-1
 
     val playedIndices = mutableSetOf<Int>()
+
+    var resetTransform: (() -> Unit)? = null
+
     suspend fun initialize(context: Context) {
         loadFolders(context)
         initializeMediaProgressMap(context)
