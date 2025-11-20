@@ -55,19 +55,15 @@ class PlayerService : MediaSessionService() {
 
                 val playerState = withContext(Dispatchers.Main) {
                     if (player.duration != C.TIME_UNSET && player.currentMediaItem != null) {
-                        Triple(player.currentPosition, player.duration, player.isPlaying)
+                        player.currentPosition
                     } else null
                 } ?: continue
 
-                val currentPos = playerState.first
-                val currentDur = playerState.second
-                val isPlaying = playerState.third
+                val currentPos = playerState
 
                 if (PlayerHolder.draggingSeekPosMs == null) {
                     PlayerHolder.exoplayerCurrentPosition = currentPos
                 }
-                PlayerHolder.duration = currentDur
-                PlayerHolder.isPlaying = isPlaying
                 PlayerHolder.saveProgress(applicationContext)
             }
         }

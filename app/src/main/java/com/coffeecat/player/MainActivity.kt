@@ -3,11 +3,13 @@ package com.coffeecat.player
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.LaunchedEffect
 import com.coffeecat.player.ui.screen.MainScreen
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
@@ -25,6 +27,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MainScreen()
+            LaunchedEffect(Unit) {
+                PlayerHolder.uiState.collect { state ->
+                    if (state.isPlaying&&state.isMainActivityVisible) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+            }
         }
         PlayerHolder.toggleIsMainActivityVisible(true)
     }
@@ -33,10 +44,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         PlayerHolder.toggleIsMainActivityVisible(true)
         updateSystemUiForOrientation()
+        PlayerHolder.currentSurface?.let { PlayerHolder.exoPlayer?.setVideoSurface(it) }
     }
     override fun onPause() {
         super.onPause()
         PlayerHolder.toggleIsMainActivityVisible(false)
+        PlayerHolder.exoPlayer?.setVideoSurface(null)
     }
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)

@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.text.Html
+import android.view.Surface
 import androidx.annotation.OptIn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +57,7 @@ object PlayerHolder {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     var exoPlayer: ExoPlayer? = null
+    var currentSurface: Surface? = null
     // 進度 Map
     private var _mediaProgressMap = MutableStateFlow<Map<String, MediaProgress>>(emptyMap())
     val mediaProgressMap = _mediaProgressMap.asStateFlow()
@@ -69,9 +71,8 @@ object PlayerHolder {
     var draggingSeekPosMs by mutableStateOf<Long?>(null)
     var lastPlayingState by mutableStateOf(false)
 
-    var duration by mutableStateOf(0L)
+    var exoplayerDuration by mutableStateOf(0L)
     var exoplayerCurrentPosition by mutableStateOf(0L)
-    var isPlaying by mutableStateOf(false)
     var playbackSpeed by mutableStateOf(1f)
 
     val locationHistory = mutableListOf<PlayerLocation>()
@@ -161,7 +162,7 @@ object PlayerHolder {
 
     fun saveProgress(context: Context) {
         val media = _uiState.value.currentMedia ?: return
-        val dur = duration
+        val dur = exoplayerDuration
         if (dur <= 0L) return
         _mediaProgressMap.update { map ->
             map.toMutableMap().apply {
@@ -336,7 +337,8 @@ object PlayerHolder {
 
     fun toggleControlsVisible(a: Boolean? = null) =
         _uiState.update { it.copy(controlsVisible = a ?: !it.controlsVisible) }
-
+    fun toggleIsPlaying(a: Boolean? = null) =
+        _uiState.update { it.copy(isPlaying = a ?: !it.isPlaying) }
     fun toggleIsDetailsVisible(a: Boolean? = null) =
         _uiState.update { it.copy(isDetailsVisible = a ?: !it.isDetailsVisible) }
     fun toggleIsShuffle(a: Boolean? = null) =
@@ -436,7 +438,7 @@ object PlayerHolder {
             currentMedia = media,
             currentMediaFolder = folder
         ) }
-        duration=0
+        exoplayerDuration=0
         clearDanmuTrigger.value=true
         play(context, media)
         serviceScope.launch(Dispatchers.IO) {
@@ -526,6 +528,7 @@ object PlayerHolder {
                     override fun onPlaybackStateChanged(state: Int) {
                         if (state == Player.STATE_READY) {
                             selectMediaReadyCount++
+                            exoplayerDuration = this@apply.duration
                         }
                         if (state == Player.STATE_ENDED&&_settings.value.autoPlay) {
                             val ui = _uiState.value
@@ -567,6 +570,9 @@ object PlayerHolder {
                                 selectMedia(nextMedia, context, folder)
                             }
                         }
+                    }
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        toggleIsPlaying(isPlaying)
                     }
                 })
             }
@@ -616,8 +622,7 @@ object PlayerHolder {
         exoPlayer?.release()
         exoPlayer = null
         exoplayerCurrentPosition = 0
-        duration = 0
-        isPlaying = false
+        exoplayerDuration = 0
         draggingSeekPosMs = null
         _uiState.value = PlayerUiState()
     }

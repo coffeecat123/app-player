@@ -8,7 +8,6 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -54,9 +53,6 @@ fun DanmuLayer(
     val danmuBuffer = remember { mutableStateListOf<Danmu>() }
     var lastDanmuTime by remember { mutableStateOf(0L) }
     var pointer by remember { mutableStateOf(0) }
-
-    val uiState by PlayerHolder.uiState.collectAsState()
-    val isDanmuEnabled = uiState.isDanmuEnabled
 
     val paint = remember { Paint().apply { isAntiAlias = true } }
     val redrawTrigger = remember { mutableStateOf(0) }
@@ -127,7 +123,7 @@ fun DanmuLayer(
     }
 
     fun triggerDanmus(currentTimeMs: Long) {
-        if (!isDanmuEnabled || danmus.isEmpty()) return
+        if (danmus.isEmpty()) return
 
         val actualSpeed = danmuBaseSpeed * danmuSpeedMultiplier
         val totalDuration = canvasWidth / actualSpeed
@@ -216,7 +212,7 @@ fun DanmuLayer(
                 val delta = (now - lastTime) / 1_000_000_000f
                 lastTime = now
 
-                if (PlayerHolder.isPlaying && isDanmuEnabled) {
+                if (PlayerHolder.uiState.value.isPlaying) {
                     val currentTimeMs = PlayerHolder.exoplayerCurrentPosition
 
                     triggerDanmus(PlayerHolder.exoplayerCurrentPosition)

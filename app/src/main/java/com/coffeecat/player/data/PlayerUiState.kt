@@ -33,6 +33,7 @@ data class PlayerUiState(
     val controlsVisible: Boolean = true,
     val isDetailsVisible: Boolean = true,
     val isMainActivityVisible: Boolean = true,
+    val isPlaying: Boolean = false,
     val isDanmuEnabled: Boolean = true,
     val isDanmuSettingVisible: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.NO_REPEAT,

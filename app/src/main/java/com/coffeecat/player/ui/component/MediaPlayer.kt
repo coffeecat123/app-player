@@ -3,10 +3,11 @@ package com.coffeecat.player.ui.component
 import android.annotation.SuppressLint
 import android.graphics.SurfaceTexture
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
-import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
@@ -52,7 +53,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerView
 import com.coffeecat.player.data.MediaInfo
 import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.service.PlayerHolder
@@ -62,8 +62,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
 
 @OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -105,6 +103,9 @@ fun MediaPlayer(
     var videoWidth by remember { mutableStateOf(0) }
     var videoHeight by remember { mutableStateOf(0) }
 
+    var longPressJob: Job? = null
+    var originalSpeed by remember { mutableStateOf(0f) }
+
     PlayerHolder.resetTransform = {
         scale = 1f
         rotation = 0f
@@ -141,22 +142,6 @@ fun MediaPlayer(
         val sec = totalSec % 60
         return "%02d:%02d".format(min, sec)
     }
-    /*
-    LaunchedEffect(exoPlayer) {
-        while (this.isActive) {
-            if(exoPlayer==null)return@LaunchedEffect
-            if (exoPlayer.duration != C.TIME_UNSET && exoPlayer.currentMediaItem != null) {
-                if (PlayerHolder.draggingSeekPosMs == null) {
-                    PlayerHolder.currentPosition = exoPlayer.currentPosition
-                }
-                PlayerHolder.duration = exoPlayer.duration
-            }
-
-            delay(200)
-        }
-    }
-
-     */
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
             resetHideTimer()
@@ -199,6 +184,28 @@ fun MediaPlayer(
                                 val boxHeight = size.height.toFloat()
                                 val yFraction = change.position.y / boxHeight
                                 dragAllowed = yFraction in 0.2f..0.8f
+
+                                longPressJob?.cancel()
+                                if(PlayerHolder.uiState.value.isPlaying) {
+                                    longPressJob = scope.launch {
+                                        delay(800)
+                                        if (!isDragging && change.pressed) {
+
+                                            val vibrator = context.getSystemService(Vibrator::class.java)
+                                            vibrator?.vibrate(
+                                                VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
+                                            )
+                                            originalSpeed = PlayerHolder.playbackSpeed
+                                            Log.d("PlayerHolder", "originalSpeed: $originalSpeed")
+                                            PlayerHolder.updatePlaybackSpeed(2f)
+                                            PlayerHolder.toggleControlsVisible(false)
+                                            PlayerHolder.toggleIsDanmuSettingVisible(false)
+                                            dragAllowed = false
+                                            change.consume()
+                                        }
+                                    }
+                                }
+
                                 if (controlsVisible && yFraction !in 0.3f..0.8f) {
                                     clickJob?.cancel()
                                     change.consume()
@@ -267,6 +274,11 @@ fun MediaPlayer(
                             // pointer up
                             if (change.changedToUp()) {
                                 dragAllowed = false
+                                longPressJob?.cancel()
+                                if(originalSpeed>0) {
+                                    PlayerHolder.updatePlaybackSpeed(originalSpeed)
+                                    originalSpeed=0f
+                                }
                                 if (isDragging) {
                                     PlayerHolder.draggingSeekPosMs?.let {
                                         if (abs(it - exoPlayer.currentPosition) > 3000) {
@@ -302,7 +314,10 @@ fun MediaPlayer(
                             }
 
                             override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
-                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture) = true
+                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                                exoPlayer.setVideoSurface(null)
+                                return true
+                            }
                             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
                         }
                     }

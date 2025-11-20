@@ -191,7 +191,7 @@ fun PlayerSlider(
 ) {
     val exoPlayer = PlayerHolder.exoPlayer ?: return
     val pos = PlayerHolder.exoplayerCurrentPosition
-    val duration = PlayerHolder.duration
+    val duration = PlayerHolder.exoplayerDuration
     var seekJob by remember { mutableStateOf<Job?>(null) }
 
     Box(modifier = modifier.fillMaxWidth()) {
