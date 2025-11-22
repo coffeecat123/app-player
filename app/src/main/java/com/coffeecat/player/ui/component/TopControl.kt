@@ -14,15 +14,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coffeecat.player.data.MediaInfo
-import com.coffeecat.player.data.Orientation
+import com.coffeecat.player.service.PlayerHolder
 
 @Composable
 fun TopControl(
     media: MediaInfo,
-    orientation: Orientation,
+    isFullScreen: Boolean,
     modifier: Modifier
 ) {
 
+    val aspectRatio= PlayerHolder.exoplayerAspectRatio
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -33,7 +34,7 @@ fun TopControl(
                 )
             )
             .then(
-                if (orientation == Orientation.LANDSCAPE)
+                if (isFullScreen&&aspectRatio>1)
                     Modifier.padding(horizontal = 32.dp)
                 else
                     Modifier

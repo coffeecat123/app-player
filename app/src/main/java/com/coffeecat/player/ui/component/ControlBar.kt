@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
@@ -40,8 +41,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.Player
 import com.coffeecat.player.R
-import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.service.PlayerHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -51,7 +52,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ControlBar(
-    orientation: Orientation,
+    isFullScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
     val exoPlayer = PlayerHolder.exoPlayer ?: return
@@ -61,7 +62,7 @@ fun ControlBar(
     val isDanmuEnabled = uiState.isDanmuEnabled
     val selectedSpeed = PlayerHolder.playbackSpeed
     var expanded by remember { mutableStateOf(false) }
-
+    val aspectRatio= PlayerHolder.exoplayerAspectRatio
 
     LaunchedEffect(exoPlayer) {
         while (this.isActive) {
@@ -80,7 +81,7 @@ fun ControlBar(
                 )
             )
             .then(
-                if (orientation == Orientation.LANDSCAPE)
+                if (isFullScreen&&aspectRatio>1)
                     Modifier.padding(horizontal = 32.dp)
                 else
                     Modifier
@@ -91,7 +92,7 @@ fun ControlBar(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start,
-            modifier = if (orientation == Orientation.LANDSCAPE)
+            modifier = if (isFullScreen)
                 Modifier.fillMaxWidth().padding(bottom = 4.dp)
             else
                 Modifier.fillMaxWidth().padding(bottom = 0.dp)
@@ -108,7 +109,7 @@ fun ControlBar(
                 )
             }
 
-            if(orientation!=Orientation.LANDSCAPE) {
+            if(!isFullScreen) {
                 PlayerSlider(scope, modifier = Modifier.weight(1f))
             }else{
                 // 播放速度選擇
@@ -159,9 +160,12 @@ fun ControlBar(
             }
 
             // 全螢幕
-            IconButton(onClick = { PlayerHolder.onFullScreenButtonClicked() }) {
+            IconButton(onClick = {
+                if(PlayerHolder.exoplayerStatus==Player.STATE_BUFFERING) return@IconButton
+                PlayerHolder.toggleIsFullScreen()
+            }) {
                 Icon(
-                    imageVector = Icons.Default.Fullscreen,
+                    imageVector = if (isFullScreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                     contentDescription = "FullScreen",
                     tint = Color.White
                 )
@@ -169,7 +173,7 @@ fun ControlBar(
         }
 
         // Slider 位置根據方向調整
-        if (orientation == Orientation.LANDSCAPE) {
+        if (isFullScreen) {
             // LANDSCAPE 上方 Row
             Row(
                 modifier = Modifier

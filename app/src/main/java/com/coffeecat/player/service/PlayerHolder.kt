@@ -19,6 +19,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -26,7 +27,6 @@ import com.coffeecat.player.R
 import com.coffeecat.player.data.Danmu
 import com.coffeecat.player.data.FolderInfo
 import com.coffeecat.player.data.MediaInfo
-import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.data.PlayerLocation
 import com.coffeecat.player.data.PlayerUiState
 import com.coffeecat.player.data.RepeatMode
@@ -73,6 +73,10 @@ object PlayerHolder {
 
     var exoplayerDuration by mutableStateOf(0L)
     var exoplayerCurrentPosition by mutableStateOf(0L)
+    var exoplayerAspectRatio by mutableStateOf(0f)
+    var exoplayerWidth  by mutableStateOf(0f)
+    var exoplayerHeight  by mutableStateOf(0f)
+    var exoplayerStatus by mutableStateOf(0)
     var playbackSpeed by mutableStateOf(1f)
 
     val locationHistory = mutableListOf<PlayerLocation>()
@@ -289,7 +293,7 @@ object PlayerHolder {
                         duration = 0L,
                         fileName = name,
                         extension = ext,
-                        isVideo = isVideo,
+                        isVideo=isVideo,
                         danmuUri = xmlFile?.uri
                     )
                 }
@@ -334,6 +338,8 @@ object PlayerHolder {
 
     fun toggleCanFullScreen(a: Boolean? = null) =
         _uiState.update { it.copy(canFullScreen = a ?: !it.canFullScreen) }
+    fun toggleIsFullScreen(a: Boolean? = null) =
+        _uiState.update { it.copy(isFullScreen = a ?: !it.isFullScreen) }
 
     fun toggleControlsVisible(a: Boolean? = null) =
         _uiState.update { it.copy(controlsVisible = a ?: !it.controlsVisible) }
@@ -354,9 +360,6 @@ object PlayerHolder {
     fun toggleAlwaysRestart(a: Boolean? = null) =
         _settings.update { it.copy(alwaysRestart = a ?: !it.alwaysRestart) }
 
-    fun changeOrientation(a: Orientation) {
-        _uiState.update { it.copy(nowOrientation = a) }
-    }
     fun updateLocation(newLocation: PlayerLocation) {
         locationHistory.add(_uiState.value.location)
         _uiState.update { it.copy(location = newLocation,
@@ -415,17 +418,6 @@ object PlayerHolder {
         playbackSpeed = speed
         exoPlayer?.playbackParameters = PlaybackParameters(speed)
     }
-    fun onFullScreenButtonClicked() {
-        _uiState.update { state ->
-            state.copy(
-                nowOrientation = if (state.nowOrientation == Orientation.LANDSCAPE)
-                    Orientation.PORTRAIT
-                else
-                    Orientation.LANDSCAPE
-            )
-        }
-    }
-
 
     @OptIn(UnstableApi::class)
     fun selectMedia(media: MediaInfo, context: Context,folder: FolderInfo) {
@@ -449,9 +441,9 @@ object PlayerHolder {
     @OptIn(UnstableApi::class)
     fun loadDanmusForMedia(context: Context, media: MediaInfo) {
         danmuList.clear()
+        onDanmuLoaded?.invoke(listOf())
         val danmuUri = media.danmuUri ?: run {
             Log.d("Danmu", "該影片沒有設定彈幕 URI")
-            onDanmuLoaded?.invoke(listOf())
             selectMediaReadyCount++
             return
         }
@@ -526,9 +518,20 @@ object PlayerHolder {
             exoPlayer = ExoPlayer.Builder(context).build().apply {
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
+                        if(state!=Player.STATE_BUFFERING||exoplayerStatus==0){
+                            exoplayerStatus=state
+                        }
                         if (state == Player.STATE_READY) {
                             selectMediaReadyCount++
                             exoplayerDuration = this@apply.duration
+                            val format = this@apply.currentTracks.groups[0].getTrackFormat(0)
+                            val mimeType = format.sampleMimeType
+                            if(mimeType==null)return
+                            val isVideo=mimeType.startsWith("video/")
+                            _uiState.value.currentMedia?.isVideo=isVideo
+                            if(!isVideo){
+                                exoplayerAspectRatio=2f
+                            }
                         }
                         if (state == Player.STATE_ENDED&&_settings.value.autoPlay) {
                             val ui = _uiState.value
@@ -574,6 +577,22 @@ object PlayerHolder {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         toggleIsPlaying(isPlaying)
                     }
+                    override fun onVideoSizeChanged(videoSize: VideoSize) {
+                        exoplayerWidth=videoSize.width.toFloat()
+                        exoplayerHeight=videoSize.height.toFloat()
+                        if(exoplayerWidth>0f&&exoplayerHeight>0f) {
+                            exoplayerAspectRatio=exoplayerWidth/exoplayerHeight
+                        }
+                    }
+                    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+                        val artwork = mediaMetadata.artworkData
+                        if (artwork != null) {
+                            val bitmap = BitmapFactory.decodeByteArray(artwork, 0, artwork.size)
+                            _uiState.value.currentMedia?.coverBitmap=bitmap
+                        } else {
+                            _uiState.value.currentMedia?.coverBitmap=BitmapFactory.decodeResource(context.resources, R.drawable.cft)
+                        }
+                    }
                 })
             }
         }
@@ -592,19 +611,22 @@ object PlayerHolder {
             savedPos=0
         }
         val selectedFolder=_uiState.value.currentMediaFolder
+        exoplayerStatus=0
         exoPlayer?.apply {
+            clearVideoSurface()
             setMediaItem(
                 MediaItem.fromUri(uri).buildUpon()
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setTitle(media.title)
-                            .setArtist(selectedFolder?.name ?: "未知動畫")
+                            .setArtist(selectedFolder?.name)
                             .setArtworkData(coverByteArray, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
                             .build()
 
                     )
                     .build())
             prepare()
+            setVideoSurface(currentSurface)
             seekTo(savedPos)
             play()
             playbackParameters = PlaybackParameters(1f)
@@ -613,7 +635,7 @@ object PlayerHolder {
         val intent = Intent(context, PlayerService::class.java)
         ContextCompat.startForegroundService(context, intent)
         serviceScope.launch {
-            delay(5000)
+            delay(3000)
             selectMediaReadyCount++
         }
     }

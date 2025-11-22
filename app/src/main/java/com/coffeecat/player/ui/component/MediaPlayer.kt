@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
@@ -35,9 +36,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
@@ -50,11 +53,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
 import androidx.media3.common.Player
-import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
+import com.coffeecat.player.R
 import com.coffeecat.player.data.MediaInfo
-import com.coffeecat.player.data.Orientation
 import com.coffeecat.player.service.PlayerHolder
 import com.coffeecat.player.ui.layer.DanmuLayer
 import kotlinx.coroutines.Job
@@ -62,6 +65,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.min
 
 @OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -72,10 +76,13 @@ fun MediaPlayer(
 ) {
     val context = LocalContext.current
     val exoPlayer = PlayerHolder.exoPlayer
+    val exoplayerStatus = PlayerHolder.exoplayerStatus
     val uiState by PlayerHolder.uiState.collectAsState()
     val controlsVisible = uiState.controlsVisible
+    val currentMedia = uiState.currentMedia
     val isDanmuSettingVisible = uiState.isDanmuSettingVisible
-    val nowOrientation = uiState.nowOrientation
+    val isFullScreen = uiState.isFullScreen
+    val coverBitmap=uiState.currentMedia?.coverBitmap
     val scope = rememberCoroutineScope()
     var hideJob by remember { mutableStateOf<Job?>(null) }
     var isDragging by remember { mutableStateOf(false) }
@@ -100,33 +107,16 @@ fun MediaPlayer(
     var lastClickTime by remember { mutableStateOf(0L) }
     var clickJob by remember { mutableStateOf<Job?>(null) }
 
-    var videoWidth by remember { mutableStateOf(0) }
-    var videoHeight by remember { mutableStateOf(0) }
-
     var longPressJob: Job? = null
     var originalSpeed by remember { mutableStateOf(0f) }
+
+    val aspectRatio = PlayerHolder.exoplayerAspectRatio
 
     PlayerHolder.resetTransform = {
         scale = 1f
         rotation = 0f
         offsetX = 0f
         offsetY = 0f
-    }
-    LaunchedEffect(exoPlayer) {
-        val listener = object : Player.Listener {
-            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                videoWidth = videoSize.width
-                videoHeight = videoSize.height
-            }
-        }
-        exoPlayer?.addListener(listener)
-    }
-
-    // 计算缩放因子以保持宽高比
-    val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
-        videoWidth.toFloat() / videoHeight.toFloat()
-    } else {
-        1920f / 1080f  // 默认比例
     }
     fun resetHideTimer() {
         hideJob?.cancel()
@@ -156,6 +146,7 @@ fun MediaPlayer(
                     boxWidth = size.width
                     boxHeight = size.height
                 }
+                .clipToBounds()
                 .pointerInput(controlsVisible, isDanmuSettingVisible) {
                     val sidebarWidthPx = with(context) { 360.dp.toPx() } // 側欄寬度
                     awaitPointerEventScope {
@@ -163,7 +154,7 @@ fun MediaPlayer(
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull() ?: continue
 
-                            if (event.changes.size > 1) {
+                            if(exoPlayer.duration==0L||exoPlayer.duration== C.TIME_UNSET) {
                                 isDragging=false
                                 dragAllowed=false
                                 continue
@@ -186,27 +177,25 @@ fun MediaPlayer(
                                 dragAllowed = yFraction in 0.2f..0.8f
 
                                 longPressJob?.cancel()
-                                if(PlayerHolder.uiState.value.isPlaying) {
-                                    longPressJob = scope.launch {
-                                        delay(800)
-                                        if (!isDragging && change.pressed) {
+                                longPressJob = scope.launch {
+                                    delay(800)
+                                    if (!isDragging&&!isTransforming && change.pressed&&PlayerHolder.uiState.value.isPlaying) {
 
-                                            val vibrator = context.getSystemService(Vibrator::class.java)
-                                            vibrator?.vibrate(
-                                                VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
-                                            )
-                                            originalSpeed = PlayerHolder.playbackSpeed
-                                            Log.d("PlayerHolder", "originalSpeed: $originalSpeed")
-                                            PlayerHolder.updatePlaybackSpeed(2f)
-                                            PlayerHolder.toggleControlsVisible(false)
-                                            PlayerHolder.toggleIsDanmuSettingVisible(false)
-                                            dragAllowed = false
-                                            change.consume()
-                                        }
+                                        val vibrator = context.getSystemService(Vibrator::class.java)
+                                        vibrator?.vibrate(
+                                            VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
+                                        )
+                                        originalSpeed = PlayerHolder.playbackSpeed
+                                        Log.d("PlayerHolder", "originalSpeed: $originalSpeed")
+                                        PlayerHolder.updatePlaybackSpeed(2f)
+                                        PlayerHolder.toggleControlsVisible(false)
+                                        PlayerHolder.toggleIsDanmuSettingVisible(false)
+                                        dragAllowed = false
+                                        change.consume()
                                     }
                                 }
-
-                                if (controlsVisible && yFraction !in 0.3f..0.8f) {
+                                val range=if(aspectRatio>1)0.3f..0.8f else 0.1f..0.9f
+                                if (controlsVisible && yFraction !in range) {
                                     clickJob?.cancel()
                                     change.consume()
                                     continue
@@ -248,7 +237,7 @@ fun MediaPlayer(
 
                                     // 對齊原 JS 計算
                                     val xpos = (abs(deltaX) / width).coerceIn(0f, 1f)
-                                    val t = xpos * 120f // 最多 120 秒
+                                    val t = xpos * min(PlayerHolder.exoplayerDuration/1000f*1.5f,120f) // 最多 120 秒
 
                                     val current = exoPlayer.currentPosition
                                     val duration = exoPlayer.duration
@@ -301,99 +290,153 @@ fun MediaPlayer(
                     }
                 }
         ) {
-            AndroidView(
-                factory = { context ->
-                    TextureView(context).apply {
-                        surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                            override fun onSurfaceTextureAvailable(
-                                surface: SurfaceTexture,
-                                width: Int,
-                                height: Int
-                            ) {
-                                exoPlayer.setVideoSurface(Surface(surface))
-                            }
+            when(exoplayerStatus){
+                Player.STATE_READY-> {
+                    if(currentMedia==null)return
+                    if(currentMedia.isVideo) {
+                        AndroidView(
+                            factory = { context ->
+                                TextureView(context).apply {
+                                    surfaceTextureListener =
+                                        object : TextureView.SurfaceTextureListener {
+                                            override fun onSurfaceTextureAvailable(
+                                                surface: SurfaceTexture,
+                                                width: Int,
+                                                height: Int
+                                            ) {
+                                                val s = Surface(surface)
+                                                PlayerHolder.currentSurface = s
+                                                exoPlayer.setVideoSurface(s)
+                                            }
 
-                            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
-                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                                exoPlayer.setVideoSurface(null)
-                                return true
+                                            override fun onSurfaceTextureSizeChanged(
+                                                surface: SurfaceTexture,
+                                                width: Int,
+                                                height: Int
+                                            ) {
+                                            }
+
+                                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                                                exoPlayer.setVideoSurface(null)
+                                                PlayerHolder.currentSurface?.release()
+                                                PlayerHolder.currentSurface = null
+                                                return true
+                                            }
+
+                                            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                                        }
+                                }
+                            },
+                            modifier = if (aspectRatio > 0) {
+                                Modifier
+                                    .align(Alignment.Center)
+                                    .aspectRatio(aspectRatio)
+                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = scale,
+                                        scaleY = scale,
+                                        translationX = offsetX,
+                                        translationY = offsetY,
+                                        rotationZ = rotation,
+                                        transformOrigin = transformOrigin
+                                    )
+                            } else {
+                                Modifier
                             }
-                            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                        )
+                    }else{
+                        if(coverBitmap==null) {
+                            Text(
+                                text = "music",
+                                color = Color.White,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }else {
+                            Image(
+                                bitmap = coverBitmap.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
                         }
                     }
-                },
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .aspectRatio(aspectRatio)
-                    .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offsetX,
-                        translationY = offsetY,
-                        rotationZ = rotation,
-                        transformOrigin = transformOrigin
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxWidth(1f)
+                            .fillMaxHeight(1f)
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val changes = event.changes
+
+
+                                        if (changes.size==1&&changes.any { it.changedToUp() }) {
+                                            isTransforming = false
+                                            continue
+                                        }
+                                        if(originalSpeed>0)continue
+                                        if (changes.size != 2) continue
+                                        if(isDragging)continue
+                                        if(!PlayerHolder.uiState.value.isFullScreen)continue
+
+                                        if (!isTransforming) {
+                                            pointA = changes[0].position
+                                            pointB = changes[1].position
+                                            scale=1f
+                                            rotation=0f
+                                            offsetX=0f
+                                            offsetY=0f
+                                            isTransforming = true
+                                            dragAllowed=false
+                                        }
+
+                                        val currentA = changes[0].position
+                                        val currentB = changes[1].position
+
+                                        val startCenter = (pointA + pointB) / 2f
+                                        val currentCenter = (currentA + currentB) / 2f
+                                        val translation = currentCenter - startCenter
+
+                                        val startVector = pointB - pointA
+                                        val currentVector = currentB - currentA
+                                        val deltaAngle = atan2(currentVector.y, currentVector.x) - atan2(startVector.y, startVector.x)
+
+                                        val startDistance = startVector.getDistance()
+                                        val currentDistance = currentVector.getDistance()
+                                        val zoom = currentDistance / startDistance
+
+                                        scale = zoom
+                                        rotation = Math.toDegrees(deltaAngle.toDouble()).toFloat()
+                                        offsetX = translation.x
+                                        offsetY = translation.y
+                                        transformOrigin= TransformOrigin(startCenter.x / boxWidth, startCenter.y / boxHeight)
+
+                                        changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
                     )
-            )
+                }
+                Player.STATE_BUFFERING->{
+                    Text(
+                        text = "loading . . .",
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                Player.STATE_IDLE->{
+                    Text(
+                        text = "???",
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                Player.STATE_ENDED->{
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxWidth(1f)
-                    .fillMaxHeight(1f)
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val changes = event.changes
+                }
+            }
 
-                                if (changes.size != 2) continue
-                                if(PlayerHolder.uiState.value.nowOrientation == Orientation.PORTRAIT)continue
-
-                                if (!isTransforming) {
-                                    pointA = changes[0].position
-                                    pointB = changes[1].position
-                                    scale=1f
-                                    rotation=0f
-                                    offsetX=0f
-                                    offsetY=0f
-                                    isTransforming = true
-                                }
-
-                                // 當雙指離開時重置
-                                if (changes.any { it.changedToUp() }) {
-                                    isTransforming = false
-                                    continue
-                                }
-
-                                if (isTransforming) {
-                                    val currentA = changes[0].position
-                                    val currentB = changes[1].position
-
-                                    val startCenter = (pointA + pointB) / 2f
-                                    val currentCenter = (currentA + currentB) / 2f
-                                    val translation = currentCenter - startCenter
-
-                                    val startVector = pointB - pointA
-                                    val currentVector = currentB - currentA
-                                    val deltaAngle = atan2(currentVector.y, currentVector.x) - atan2(startVector.y, startVector.x)
-
-                                    val startDistance = startVector.getDistance()
-                                    val currentDistance = currentVector.getDistance()
-                                    val zoom = currentDistance / startDistance
-
-                                    scale = zoom
-                                    rotation = Math.toDegrees(deltaAngle.toDouble()).toFloat()
-                                    offsetX = translation.x
-                                    offsetY = translation.y
-                                    transformOrigin= TransformOrigin(startCenter.x / boxWidth, startCenter.y / boxHeight)
-                                }
-
-                                changes.forEach { it.consume() }
-                            }
-                        }
-                    }
-            )
             DanmuLayer(
                 modifier = Modifier.matchParentSize()
             )
@@ -407,17 +450,19 @@ fun MediaPlayer(
                 ) {
                     TopControl(
                         media = media,
-                        orientation = nowOrientation,
+                        isFullScreen=isFullScreen,
                         modifier = Modifier.align(Alignment.TopStart)
                     )
                     ControlBar(
-                        orientation = nowOrientation,
+                        isFullScreen=isFullScreen,
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
             }
+            val boxHeightFraction = if (aspectRatio > 1) 1f else 0.5f
             //danmu_setting
-            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+            Box(modifier = Modifier.align(Alignment.CenterEnd)
+                .fillMaxHeight(boxHeightFraction)) {
                 AnimatedVisibility(
                     visible = isDanmuSettingVisible,
                     enter = slideInHorizontally(
@@ -444,7 +489,7 @@ fun MediaPlayer(
                 val dragAlpha = if (isDragging) 1f else 0f
                 Text(
                     text = "${formatTime(previewTime)} / ${formatTime(exoPlayer.duration)}\n" +
-                            "${if (skippingtime >= 0) "+" else "-"}${formatTime(abs(skippingtime))}",
+                            "${if (skippingtime >= 0) "+" else "-"}${formatTime(abs(skippingtime))}.${((abs(skippingtime) % 1000)).toString().padStart(3, '0')}",
                     fontSize = 20.sp,
                     color = Color.White,
                     textAlign = TextAlign.Center,

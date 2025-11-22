@@ -1,5 +1,6 @@
 package com.coffeecat.player.data
 
+import android.graphics.Bitmap
 import android.net.Uri
 
 
@@ -9,6 +10,7 @@ data class MediaInfo(
     val duration: Long,
     val fileName: String,
     val extension: String,
-    val isVideo: Boolean,
-    val danmuUri: Uri? = null
+    var isVideo: Boolean,
+    val danmuUri: Uri? = null,
+    var coverBitmap: Bitmap?=null
 )
