@@ -56,7 +56,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import com.coffeecat.player.R
 import com.coffeecat.player.data.MediaInfo
 import com.coffeecat.player.service.PlayerHolder
 import com.coffeecat.player.ui.layer.DanmuLayer
