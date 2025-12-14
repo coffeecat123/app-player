@@ -90,6 +90,7 @@ fun MediaPlayer(
     var dragAllowed by remember { mutableStateOf(false) }
     var skippingtime by remember { mutableStateOf(0L) }
 
+    var isPressed by remember { mutableStateOf(false) }
 
     var scale by remember { mutableStateOf(1f) }
     var rotation by remember { mutableStateOf(0f) }
@@ -97,6 +98,8 @@ fun MediaPlayer(
     var offsetY by remember { mutableStateOf(0f) }
     var pointA by remember { mutableStateOf(Offset.Zero) }
     var pointB by remember { mutableStateOf(Offset.Zero) }
+    var pointAId by remember { mutableStateOf(-1) }
+    var pointBId by remember { mutableStateOf(-1) }
     var isTransforming by remember { mutableStateOf(false) }
 
     var transformOrigin by remember { mutableStateOf(TransformOrigin(0f, 0f))}
@@ -167,6 +170,7 @@ fun MediaPlayer(
                             if (change.changedToDown()) {
                                 dragStartX = change.position.x
                                 isDragging = false
+                                isPressed = true
 
                                 val now = System.currentTimeMillis()
                                 val doubleClickDelay = 300L
@@ -178,12 +182,16 @@ fun MediaPlayer(
                                 longPressJob?.cancel()
                                 longPressJob = scope.launch {
                                     delay(800)
-                                    if (!isDragging&&!isTransforming && change.pressed&&PlayerHolder.uiState.value.isPlaying) {
+                                    if (!isDragging&&!isTransforming && isPressed &&PlayerHolder.uiState.value.isPlaying) {
 
                                         val vibrator = context.getSystemService(Vibrator::class.java)
                                         vibrator?.vibrate(
-                                            VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
+                                            VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE)
                                         )
+                                        if(originalSpeed>0) {
+                                            PlayerHolder.updatePlaybackSpeed(originalSpeed)
+                                            originalSpeed=0f
+                                        }
                                         originalSpeed = PlayerHolder.playbackSpeed
                                         Log.d("PlayerHolder", "originalSpeed: $originalSpeed")
                                         PlayerHolder.updatePlaybackSpeed(2f)
@@ -219,7 +227,6 @@ fun MediaPlayer(
                             // pointer move (drag)
                             if (change.pressed && change.positionChanged()) {
                                 if (!dragAllowed) continue
-                                PlayerHolder.toggleControlsVisible(true)
                                 val newx = change.position.x
                                 // 防止輕微抖動誤觸
                                 if (!isDragging && abs(newx - dragStartX) > 12.dp.toPx()) {
@@ -231,6 +238,7 @@ fun MediaPlayer(
                                 }
 
                                 if (isDragging) {
+                                    PlayerHolder.toggleControlsVisible(true)
                                     val deltaX = newx - dragStartX
                                     val width = size.width.toFloat()
 
@@ -261,6 +269,7 @@ fun MediaPlayer(
 
                             // pointer up
                             if (change.changedToUp()) {
+                                isPressed = false
                                 dragAllowed = false
                                 longPressJob?.cancel()
                                 if(originalSpeed>0) {
@@ -372,6 +381,8 @@ fun MediaPlayer(
 
                                         if (changes.size==1&&changes.any { it.changedToUp() }) {
                                             isTransforming = false
+                                            pointAId = -1
+                                            pointBId = -1
                                             continue
                                         }
                                         if(originalSpeed>0)continue
@@ -382,6 +393,8 @@ fun MediaPlayer(
                                         if (!isTransforming) {
                                             pointA = changes[0].position
                                             pointB = changes[1].position
+                                            pointAId = changes[0].id.value.toInt()
+                                            pointBId = changes[1].id.value.toInt()
                                             scale=1f
                                             rotation=0f
                                             offsetX=0f
@@ -389,9 +402,25 @@ fun MediaPlayer(
                                             isTransforming = true
                                             dragAllowed=false
                                         }
+                                        var changeA = changes.find { it.id.value.toInt() == pointAId }
+                                        var changeB = changes.find { it.id.value.toInt() == pointBId }
 
-                                        val currentA = changes[0].position
-                                        val currentB = changes[1].position
+                                        if (changeA == null && changes.size == 2) {
+                                            val remainingChange = changes.find { it.id.value.toInt() != pointBId }
+                                            if (remainingChange != null) {
+                                                pointAId = remainingChange.id.value.toInt()
+                                                changeA = remainingChange
+                                            }
+                                        } else if (changeB == null && changes.size == 2) {
+                                            val remainingChange = changes.find { it.id.value.toInt() != pointAId }
+                                            if (remainingChange != null) {
+                                                pointBId = remainingChange.id.value.toInt()
+                                                changeB = remainingChange
+                                            }
+                                        }
+
+                                        val currentA = changeA?.position ?: pointA
+                                        val currentB = changeB?.position ?: pointB
 
                                         val startCenter = (pointA + pointB) / 2f
                                         val currentCenter = (currentA + currentB) / 2f
