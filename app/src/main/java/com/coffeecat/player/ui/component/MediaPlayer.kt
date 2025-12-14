@@ -231,7 +231,9 @@ fun MediaPlayer(
                                 // 防止輕微抖動誤觸
                                 if (!isDragging && abs(newx - dragStartX) > 12.dp.toPx()) {
                                     isDragging = true
-                                    PlayerHolder.lastPlayingState = exoPlayer.isPlaying
+                                    if(exoPlayer.playbackState!=Player.STATE_BUFFERING) {
+                                        PlayerHolder.lastPlayingState = exoPlayer.isPlaying
+                                    }
                                     exoPlayer.pause() // 拖曳時先停
                                     clickJob?.cancel() // 不要觸發單擊
                                     dragStartX = (newx * 0.6 + dragStartX * 0.4).toFloat()
