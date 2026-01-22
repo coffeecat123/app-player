@@ -259,7 +259,13 @@ fun PlayerSlider(
 // 格式化時間函式，可共用
 fun formatTime(ms: Long): String {
     val totalSec = ms / 1000
-    val min = totalSec / 60
+    val hr = totalSec / 3600
+    val min = (totalSec % 3600) / 60
     val sec = totalSec % 60
-    return "%02d:%02d".format(min, sec)
+
+    return if (hr > 0) {
+        "%d:%02d:%02d".format(hr, min, sec)
+    } else {
+        "%02d:%02d".format(min, sec)
+    }
 }

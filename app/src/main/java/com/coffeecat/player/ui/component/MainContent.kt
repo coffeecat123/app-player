@@ -63,10 +63,6 @@ fun MainContent(
     val currentMediaFolder = uiState.currentMediaFolder
     val mediaProgressMap by PlayerHolder.mediaProgressMap.collectAsState(initial = emptyMap())
 
-    val formatMillis: (Long) -> String = { millis ->
-        val seconds = millis / 1000
-        "%02d:%02d".format(seconds / 60, seconds % 60)
-    }
 
 
     BackHandler {
@@ -187,8 +183,8 @@ fun MainContent(
                             progress?.let { if (it.duration > 0) it.current / it.duration.toFloat() else 0f }
                                 ?: 0f
                         val isFinished = p > 0.9f
-                        val currentText = progress?.let { formatMillis(it.current) } ?: "00:00"
-                        val durationText = progress?.let { formatMillis(it.duration) } ?: "00:00"
+                        val currentText = progress?.let { formatTime(it.current) } ?: "00:00"
+                        val durationText = progress?.let { formatTime(it.duration) } ?: "00:00"
                         val isSelected = selectedMedia?.uri == media.uri
                         val backgroundColor = when {
                             isSelected && isFinished -> Color(0x1FFFFFFF) // 選中且完成，半透明
